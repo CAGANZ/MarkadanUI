@@ -2,12 +2,11 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-export async function GET(req) {
+export async function GET() {
   const base = (process.env.API_BASE_URL || "").replace(/\/$/, "");
-  const qs = new URL(req.url).search || "";
 
   try {
-    const r = await fetch(`${base}/products${qs}`, { cache: "no-store" });
+    const r = await fetch(`${base}/brands`, { cache: "no-store" });
 
     if (!r.ok) {
       const errorText = await r.text();
