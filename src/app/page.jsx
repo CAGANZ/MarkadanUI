@@ -89,7 +89,7 @@ export default async function HomePage() {
               return (
                 <Link
                   key={c.id}
-                  href={`/products?categoryId=${c.id}`}
+                  href={`/categories/${c.id}`}
                   className="group relative flex flex-col rounded-2xl overflow-hidden bg-white shadow-md border border-neutral-200 transition hover:shadow-xl hover:scale-[1.02]"
                 >
                   {/* Görsel */}

@@ -1,130 +1,79 @@
-
-// src/app/brands/[id]/page.jsx
 import Link from "next/link";
 import HorizontalScroller from "@/components/HorizontalScroller";
+import { PLACEHOLDER_PRODUCT, getBrandImageById } from "@/lib/catalogMedia";
 
 export const dynamic = "force-dynamic";
 
-// (Opsiyonel) Marka görselleri — brands/page.jsx ile aynı eşleme.
-// Olmayanlar placeholder ile gösterilir.
-const brandImages = {
-  "LeadTech":
-    "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop",
-  "Ramingues":
-    "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1200&auto=format&fit=crop",
-  "Happie":
-    "https://images.unsplash.com/photo-1604289433068-badef6f6c928?q=80&w=2081&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3Dp",
-  "Inhale & Exhale":
-    "https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?q=80&w=1200&auto=format&fit=crop",
-  "AutoMate":
-    "https://images.unsplash.com/photo-1549924231-f129b911e442?q=80&w=1200&auto=format&fit=crop",
-};
-
 export default async function BrandDetailPage({ params }) {
-  const { id } = params;
+  const { id } = await params;
   const base = process.env.NEXT_PUBLIC_BASE_URL || "";
 
-  // Paralel veri çekimi: bu markanın ürünleri, tüm markalar listesi, marka detayı
-  const [productsRes, brandsRes, brandRes] = await Promise.all([
+  const [prodRes, allBrandsRes, brandRes] = await Promise.all([
     fetch(`${base}/products?brandId=${encodeURIComponent(id)}`, { cache: "no-store" }),
     fetch(`${base}/brands`, { cache: "no-store" }),
-    fetch(`${base}/brands/${id}`, { cache: "no-store" }),
+    fetch(`${base}/brands/${encodeURIComponent(id)}`, { cache: "no-store" }),
   ]);
 
-  if (!brandsRes.ok) {
-    return (
-      <div className="min-h-[60vh] bg-amber-50 text-neutral-900 p-6">
-        Markalar alınamadı. Hata kodu: {brandsRes.status}
-      </div>
-    );
+  // Ürünler — güvenli çıkarım
+  let items = [];
+  if (prodRes.ok) {
+    const data = await prodRes.json();
+    items = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
   }
 
-  const allBrands = await brandsRes.json(); // [{id, name}]
-  const brand = brandRes.ok ? await brandRes.json() : null;
+  // Marka adı
+  let brandName = `Marka #${id}`;
+  if (brandRes.ok) {
+    const b = await brandRes.json();
+    if (b?.name) brandName = b.name;
+  } else if (items[0]?.brandName) {
+    brandName = items[0].brandName;
+  }
 
-  const productsData = productsRes.ok ? await productsRes.json() : { items: [] };
-  const items = Array.isArray(productsData?.items) ? productsData.items : [];
-
-  const brandName =
-    brand?.name || (items.length > 0 ? items[0].brandName : "Marka");
-
-  // Diğer markalar (bu marka hariç)
-  const otherBrands = allBrands.filter((b) => String(b.id) !== String(id));
-
-  const heroImg = brandImages[brandName] || "https://via.placeholder.com/1200x600?text=Marka";
+  // Diğer markalar
+  let otherBrands = [];
+  if (allBrandsRes.ok) {
+    const brands = await allBrandsRes.json(); // [{id,name}]
+    otherBrands = brands.filter((b) => String(b.id) !== String(id));
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-amber-100 text-neutral-900">
-      {/* Üst bar + breadcrumb */}
-      <header className="px-6 pt-8 pb-6 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between">
-          {/* Sol üst: Markadan linki */}
-          <Link
-            href="/"
-            className="text-xl md:text-2xl font-extrabold tracking-tight text-neutral-900 hover:opacity-80 transition"
-            aria-label="Markadan ana sayfa"
-          >
-            Markadan
-          </Link>
-        </div>
-
-        {/* Breadcrumb */}
-        <nav className="mt-3 text-sm text-neutral-600 flex flex-wrap items-center gap-1">
-          <Link href="/" className="hover:underline">Ana sayfa</Link>
-          <span>›</span>
-          <Link href="/brands" className="hover:underline">Markalar</Link>
-          <span>›</span>
+      {/* Breadcrumb + başlık */}
+      <header className="px-6 pt-10 pb-6 max-w-7xl mx-auto">
+        <nav className="text-sm text-neutral-600 flex flex-wrap items-center gap-1 mb-2">
+          <Link href="/" className="hover:underline">Ana sayfa</Link><span>›</span>
+          <Link href="/brands" className="hover:underline">Markalar</Link><span>›</span>
           <span className="text-neutral-900 font-semibold">{brandName}</span>
         </nav>
       </header>
 
-      {/* Hero / Marka görseli (şık başlık alanı) */}
-      <div className="px-6 max-w-7xl mx-auto">
-        <div className="relative w-full overflow-hidden rounded-2xl border border-neutral-200 shadow-md">
-          <div className="relative aspect-[3/1] w-full">
-            <img
-              src={heroImg}
-              alt={brandName}
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
-            <h1 className="absolute bottom-4 left-5 text-3xl md:text-4xl font-extrabold text-white drop-shadow">
-              {brandName}
-            </h1>
-          </div>
-        </div>
-      </div>
-
-      <main className="px-6 pb-16 max-w-7xl mx-auto space-y-10 mt-6">
-        {/* ÜST: Bu markaya ait ürünler — yatay scroller (4 görünür) */}
+      <main className="px-6 pb-16 max-w-7xl mx-auto space-y-10">
+        {/* ÜST: Bu markanın ürünleri (yatay kaydırma) */}
         <section>
           <div className="mb-4 flex items-end justify-between">
-            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-              {brandName} ürünleri
-            </h2>
+            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">{brandName} ürünleri</h2>
             {items.length > 0 && (
-              <div className="text-sm text-neutral-600">
-                Toplam <span className="font-bold">{productsData.total ?? items.length}</span> ürün
-              </div>
+              <div className="text-sm text-neutral-600">Toplam <span className="font-bold">{items.length}</span> ürün</div>
             )}
           </div>
 
           {items.length === 0 ? (
             <div className="rounded-2xl bg-white border border-neutral-200 p-6 text-neutral-700">
-              Bu markada henüz ürün bulunamadı.
+              Bu markaya ait henüz ürün bulunamadı.
             </div>
           ) : (
-            <HorizontalScroller visible={4} gapPx={24} bgFadeColor="#FFF7E6">
+            <HorizontalScroller>
               {items.map((p) => (
                 <Link
                   key={p.id}
                   href={`/products/${p.id}`}
-                  className="group relative flex flex-col rounded-2xl overflow-hidden bg-white shadow-md border border-neutral-200 transition hover:shadow-xl hover:scale-[1.02]"
+                  className="snap-start min-w-[260px] max-w-[280px] flex-shrink-0 group relative flex flex-col rounded-2xl overflow-hidden bg-white shadow-md border border-neutral-200 transition hover:shadow-xl hover:scale-[1.02]"
                 >
                   {/* Görsel */}
                   <div className="relative aspect-[4/3] w-full">
                     <img
-                      src={p.imageUrl || "https://via.placeholder.com/400x300?text=Ürün+Görseli"}
+                      src={p.imageUrl || PLACEHOLDER_PRODUCT}
                       alt={p.title}
                       className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       loading="lazy"
@@ -143,7 +92,7 @@ export default async function BrandDetailPage({ params }) {
 
                   {/* Footer buton */}
                   <div className="mt-auto flex items-center justify-center bg-[#FFE2A7] text-neutral-900 text-sm font-bold px-3 py-2 transition group-hover:bg-[#FFD88A]">
-                    Ürüne git
+                    Detayları gör →
                   </div>
                 </Link>
               ))}
@@ -151,46 +100,45 @@ export default async function BrandDetailPage({ params }) {
           )}
         </section>
 
-        {/* ALT: Diğer markalar — yine yatay scroller (4 görünür) */}
+        {/* ALT: Diğer markalar (yatay kaydırma) */}
         <section>
           <div className="mb-4 flex items-end justify-between">
             <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">Diğer markalar</h2>
-            <Link href="/brands" className="text-sm font-semibold text-neutral-700 hover:underline">
-              Tüm markalar
-            </Link>
+            <Link href="/brands" className="text-sm font-semibold text-neutral-700 hover:underline">Tüm markalar</Link>
           </div>
 
-          <HorizontalScroller visible={4} gapPx={24} bgFadeColor="#FFF7E6">
-            {otherBrands.map((b) => {
-              const img = brandImages[b.name] || "https://via.placeholder.com/600x400?text=Marka";
-              return (
+          {otherBrands.length === 0 ? (
+            <div className="rounded-2xl bg-white border border-neutral-200 p-6 text-neutral-700">
+              Diğer marka bulunamadı.
+            </div>
+          ) : (
+            <HorizontalScroller>
+              {otherBrands.map((b) => (
                 <Link
                   key={b.id}
                   href={`/brands/${b.id}`}
-                  className="group relative flex flex-col rounded-2xl overflow-hidden bg-white shadow-md border border-neutral-200 transition hover:shadow-xl hover:scale-[1.02]"
+                  className="snap-start min-w-[260px] max-w-[280px] flex-shrink-0 group relative flex flex-col rounded-2xl overflow-hidden bg-white shadow-md border border-neutral-200 transition hover:shadow-xl hover:scale-[1.02]"
                 >
                   {/* Görsel */}
                   <div className="relative aspect-[4/3] w-full">
                     <img
-                      src={img}
+                      src={getBrandImageById(b.id)}
                       alt={b.name}
                       className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       loading="lazy"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
-                    <h3 className="absolute bottom-3 left-3 text-lg font-bold text-white drop-shadow-md">
-                      {b.name}
-                    </h3>
+                    <h3 className="absolute bottom-3 left-3 text-lg font-bold text-white drop-shadow-md">{b.name}</h3>
                   </div>
 
                   {/* Footer buton */}
                   <div className="mt-auto flex items-center justify-center bg-[#FFE2A7] text-neutral-900 text-sm font-bold px-3 py-2 transition group-hover:bg-[#FFD88A]">
-                    Ürünleri gör
+                    Marka sayfası
                   </div>
                 </Link>
-              );
-            })}
-          </HorizontalScroller>
+              ))}
+            </HorizontalScroller>
+          )}
         </section>
       </main>
     </div>

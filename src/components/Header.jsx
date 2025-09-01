@@ -78,7 +78,7 @@ export default async function Header() {
             {top9.map((c) => (
               <Link
                 key={c.id}
-                href={`/products?categoryId=${c.id}`}
+                href={`/categories/${c.id}`}
                 className="
                   text-neutral-700
                   hover:text-neutral-900

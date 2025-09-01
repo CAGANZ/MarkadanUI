@@ -1,6 +1,7 @@
 // src/app/categories/page.jsx
 import CategoryCard from "@/components/cards/CategoryCard";
 
+
 export const dynamic = "force-dynamic";
 
 export default async function CategoriesPage() {

@@ -5,7 +5,7 @@ import MagnifierImage from "@/components/MagnifierImage";
 export const dynamic = "force-dynamic";
 
 export default async function ProductDetailPage({ params }) {
-  const { id } = params;
+  const { id } = await params;
   const base = process.env.NEXT_PUBLIC_BASE_URL || "";
   const res = await fetch(`${base}/products/${id}`, { cache: "no-store" });
   console.log(id);

@@ -1,10 +1,9 @@
-// src/components/cards/BrandCard.jsx
 import Link from "next/link";
-import { getBrandImage } from "@/lib/catalogMedia";
+import { getBrandImageById } from "@/lib/catalogMedia";
 
 export default function BrandCard({ id, name, href }) {
-  const img = getBrandImage(name);
-  const to = href || `/brands/${id}`; // marka kartı varsayılan marka detayına götürsün
+  const to = href || `/brands/${id}`;
+  const img = getBrandImageById(id); // ← ID tabanlı ortak kaynak
 
   return (
     <Link

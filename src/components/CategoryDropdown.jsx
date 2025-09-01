@@ -74,7 +74,7 @@ export default function CategoryDropdown({ categories = [] }) {
               {categories.map((c) => (
                 <li key={c.id}>
                   <Link
-                    href={`/products?categoryId=${c.id}`}
+                    href={`/categories/${c.id}`}
                     className="block rounded-md px-3 py-2 text-sm text-neutral-800 hover:bg-[#FFF1C9] hover:text-neutral-900"
                     onClick={() => setOpen(false)}
                   >

@@ -1,10 +1,9 @@
-// src/components/cards/CategoryCard.jsx
 import Link from "next/link";
-import { getCategoryImage } from "@/lib/catalogMedia";
+import { getCategoryImageById } from "@/lib/catalogMedia";
 
 export default function CategoryCard({ id, name, href }) {
-  const img = getCategoryImage(name);
-  const to = href || `/products?categoryId=${id}`;
+  const to = href || `/categories/${id}`;
+  const img = getCategoryImageById(id); // ← ID tabanlı ortak kaynak
 
   return (
     <Link
