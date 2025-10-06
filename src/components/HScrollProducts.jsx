@@ -13,6 +13,7 @@ import Image from "next/image";
 export default function HScrollProducts({ items = [] }) {
   const rowRef = useRef(null);
   const wrapRef = useRef(null);
+  const timerRef = useRef(null);
   const [cardW, setCardW] = useState(280); // px
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
@@ -74,6 +75,40 @@ export default function HScrollProducts({ items = [] }) {
     rowRef.current?.scrollBy({ left: x, behavior: "smooth" });
   };
 
+  // Otomatik kaydırma: her 7 saniyede bir bir sayfa (VISIBLE adet) kaydır
+  const startAutoScroll = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      const el = rowRef.current;
+      if (!el) return;
+      const { scrollLeft, scrollWidth, clientWidth } = el;
+      const atEnd = scrollLeft + clientWidth >= scrollWidth - 1;
+      if (atEnd) {
+        el.scrollTo({ left: 0, behavior: "smooth" });
+      } else {
+        el.scrollBy({ left: scrollStep, behavior: "smooth" });
+      }
+    }, 7000);
+  };
+
+  useEffect(() => {
+    startAutoScroll();
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollStep, items?.length]);
+
+  const handleClickLeft = () => {
+    scrollByX(-scrollStep);
+    startAutoScroll(); // kullanıcı etkileşiminde sayacı sıfırla
+  };
+
+  const handleClickRight = () => {
+    scrollByX(scrollStep);
+    startAutoScroll(); // kullanıcı etkileşiminde sayacı sıfırla
+  };
+
   if (!Array.isArray(items) || items.length === 0) {
     return (
       <div className="rounded-2xl bg-white border border-neutral-200 p-6 text-neutral-700">
@@ -92,7 +127,7 @@ export default function HScrollProducts({ items = [] }) {
       {/* Sol ok (biraz büyük ve daha dışarıda) */}
       <button
         type="button"
-        onClick={() => scrollByX(-scrollStep)}
+        onClick={handleClickLeft}
         disabled={!canLeft}
         className={[
           "absolute -left-6 top-1/2 -translate-y-1/2 z-10 rounded-full",
@@ -110,7 +145,7 @@ export default function HScrollProducts({ items = [] }) {
       {/* Sağ ok (biraz büyük ve daha dışarıda) */}
       <button
         type="button"
-        onClick={() => scrollByX(scrollStep)}
+        onClick={handleClickRight}
         disabled={!canRight}
         className={[
           "absolute -right-6 top-1/2 -translate-y-1/2 z-10 rounded-full",
@@ -146,6 +181,7 @@ export default function HScrollProducts({ items = [] }) {
                   src={imageUrl}
                   alt={p.title}
                   fill
+                  sizes="(max-width: 768px) 200px, (max-width: 1024px) 250px, 300px"
                   className="object-cover transition-transform duration-300 group-hover:scale-105"
                   loading="lazy"
                 />

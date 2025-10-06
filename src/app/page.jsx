@@ -1,22 +1,11 @@
 // src/app/page.jsx
 import Link from "next/link";
 import HScrollProducts from "@/components/HScrollProducts";
+import CategoryCard from "@/components/cards/CategoryCard";
 
 export const dynamic = "force-dynamic";
 
-// Anasayfa boyunca kullanacağımız kategori görsel eşlemeleri
-const categoryImages = {
-  "Elektronik":
-    "https://images.unsplash.com/photo-1590109738246-2af866338d35?q=80&w=2136&auto=format&fit=crop",
-  "Ev & Yaşam":
-    "https://images.unsplash.com/photo-1615874959474-d609969a20ed?q=80&w=880&auto=format&fit=crop",
-  "Giyim":
-    "https://images.unsplash.com/photo-1606844128209-80ba0f9afd34?q=80&w=2080&auto=format&fit=crop",
-  "Kişisel Bakım":
-    "https://images.unsplash.com/photo-1559671216-bda69517c47f?q=80&w=2080&auto=format&fit=crop",
-  "Spor & Outdoor":
-    "https://images.unsplash.com/photo-1501555088652-021faa106b9b?q=80&w=2073&auto=format&fit=crop",
-};
+// Kategori kartları artık global `CategoryCard` bileşeninden geliyor
 
 // Güvenli fetch helper (fail olursa null döner, sayfa yine render olur)
 async function safeJson(url) {
@@ -83,36 +72,14 @@ export default async function HomePage() {
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {categories.map((c) => {
-              const img =
-                categoryImages[c.name] || "https://images.unsplash.com/photo-1501555088652-021faa106b9b?q=80&w=2073&auto=format&fit=crop";
-              return (
-                <Link
-                  key={c.id}
-                  href={`/categories/${c.id}`}
-                  className="group relative flex flex-col rounded-2xl overflow-hidden bg-white shadow-md border border-neutral-200 transition hover:shadow-xl hover:scale-[1.02]"
-                >
-                  {/* Görsel */}
-                  <div className="relative aspect-[4/3] w-full">
-                    <img
-                      src={img}
-                      alt={c.name}
-                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
-                    <h3 className="absolute bottom-3 left-3 text-lg font-bold text-white drop-shadow">
-                      {c.name}
-                    </h3>
-                  </div>
-
-                  {/* Footer CTA */}
-                  <div className="mt-auto flex items-center justify-center bg-[#FFE2A7] text-neutral-900 text-sm font-bold px-3 py-2 transition group-hover:bg-[#FFD88A]">
-                    Ürünleri gör
-                  </div>
-                </Link>
-              );
-            })}
+            {categories.map((c) => (
+              <CategoryCard
+                key={c.id}
+                id={c.id}
+                name={c.name}
+                imageUrl={c.imageUrl}
+              />
+            ))}
           </div>
         </section>
 

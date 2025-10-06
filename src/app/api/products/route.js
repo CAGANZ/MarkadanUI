@@ -22,3 +22,36 @@ export async function GET(req) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+export async function POST(req) {
+  const base = (process.env.API_BASE_URL || "").replace(/\/$/, "");
+  
+  try {
+    const body = await req.json();
+    
+    const response = await fetch(`${base}/products`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return new NextResponse(errorText, {
+        status: response.status,
+        headers: {
+          "Content-Type": "text/plain",
+        },
+      });
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+
+  } catch (error) {
+    console.error("API proxy error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}

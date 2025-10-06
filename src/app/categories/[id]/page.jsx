@@ -1,6 +1,9 @@
 import Link from "next/link";
 import HorizontalScroller from "@/components/HorizontalScroller";
-import { PLACEHOLDER_PRODUCT, getCategoryImageById } from "@/lib/catalogMedia";
+import CategoryCard from "@/components/cards/CategoryCard";
+
+// Ürün görselleri için yerel placeholder
+const PLACEHOLDER_PRODUCT = "https://via.placeholder.com/800x600?text=No+Image";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +24,15 @@ export default async function CategoryDetailPage({ params }) {
     items = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
   }
 
-  // Kategori adı
+  // Kategori bilgileri
   let categoryName = `Kategori #${id}`;
+  let categoryDescription = "";
+  let categoryImageUrl = "https://i.ibb.co/3yS7HWtj/Gemini-Generated-Image-5qal8h5qal8h5qal.jpg"; // default
   if (catRes.ok) {
     const c = await catRes.json();
     if (c?.name) categoryName = c.name;
+    if (c?.description) categoryDescription = c.description;
+    if (c?.imageUrl) categoryImageUrl = c.imageUrl;
   } else if (items[0]?.categoryName) {
     categoryName = items[0].categoryName;
   }
@@ -49,6 +56,32 @@ export default async function CategoryDetailPage({ params }) {
       </header>
 
       <main className="px-6 pb-16 max-w-7xl mx-auto space-y-10">
+        {/* Kategori bilgi alanı: görsel + açıklama */}
+        <section className="rounded-3xl overflow-hidden border border-neutral-200 bg-white shadow-sm">
+          <div className="grid md:grid-cols-2 gap-0 items-center">
+            {/* Görsel (kare 300x300) */}
+            <div className="flex items-center justify-center p-6 md:p-10">
+              <div className="relative w-[300px] h-[300px] rounded-2xl overflow-hidden border border-neutral-200">
+                <img
+                  src={categoryImageUrl}
+                  alt={categoryName}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-black/5 to-transparent" />
+              </div>
+            </div>
+            {/* Açıklama */}
+            <div className="p-6 md:p-10 flex flex-col justify-center">
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-neutral-900">{categoryName}</h1>
+              {categoryDescription ? (
+                <p className="mt-3 text-neutral-700 md:text-base">{categoryDescription}</p>
+              ) : (
+                <p className="mt-3 text-neutral-600 text-sm">Bu kategori hakkında açıklama bulunmuyor.</p>
+              )}
+            </div>
+          </div>
+        </section>
         {/* ÜST: Bu kategoriye ait ürünler (yatay kaydırma) */}
         <section>
           <div className="mb-4 flex items-end justify-between">
@@ -114,28 +147,9 @@ export default async function CategoryDetailPage({ params }) {
           ) : (
             <HorizontalScroller>
               {otherCategories.map((c) => (
-                <Link
-                  key={c.id}
-                  href={`/categories/${c.id}`}
-                  className="snap-start min-w-[260px] max-w-[280px] flex-shrink-0 group relative flex flex-col rounded-2xl overflow-hidden bg-white shadow-md border border-neutral-200 transition hover:shadow-xl hover:scale-[1.02]"
-                >
-                  {/* Görsel */}
-                  <div className="relative aspect-[4/3] w-full">
-                    <img
-                      src={getCategoryImageById(c.id)}
-                      alt={c.name}
-                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
-                    <h3 className="absolute bottom-3 left-3 text-lg font-bold text-white drop-shadow-md">{c.name}</h3>
-                  </div>
-
-                  {/* Footer buton */}
-                  <div className="mt-auto flex items-center justify-center bg-[#FFE2A7] text-neutral-900 text-sm font-bold px-3 py-2 transition group-hover:bg-[#FFD88A]">
-                    Ürünleri gör
-                  </div>
-                </Link>
+                <div key={c.id} className="snap-start min-w-[260px] max-w-[280px] flex-shrink-0">
+                  <CategoryCard id={c.id} name={c.name} imageUrl={c.imageUrl} />
+                </div>
               ))}
             </HorizontalScroller>
           )}

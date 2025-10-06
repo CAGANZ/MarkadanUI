@@ -15,7 +15,7 @@ export default async function BrandsPage() {
     );
   }
 
-  const brands = await res.json(); // [{ id, name }...]
+  const brands = await res.json(); // [{ id, name, imageUrl }...]
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-amber-100 text-neutral-900">
@@ -31,7 +31,7 @@ export default async function BrandsPage() {
       <main className="px-6 pb-16 max-w-7xl mx-auto">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {brands.map((b) => (
-            <BrandCard key={b.id} id={b.id} name={b.name} />
+            <BrandCard key={b.id} id={b.id} name={b.name} imageUrl={b.imageUrl} />
           ))}
         </div>
       </main>

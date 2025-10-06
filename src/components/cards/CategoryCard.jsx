@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { getCategoryImageById } from "@/lib/catalogMedia";
 
-export default function CategoryCard({ id, name, href }) {
+export default function CategoryCard({ id, name, href, imageUrl }) {
   const to = href || `/categories/${id}`;
-  const img = getCategoryImageById(id); // ← ID tabanlı ortak kaynak
+  const defaultImg = "https://i.ibb.co/3yS7HWtj/Gemini-Generated-Image-5qal8h5qal8h5qal.jpg";
+  const img = imageUrl || defaultImg; // DB'den gelmezse global varsayılan görsel
 
   return (
     <Link
