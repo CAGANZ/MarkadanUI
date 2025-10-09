@@ -1,7 +1,7 @@
 // src/app/admin/products/create/page.jsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -9,6 +9,7 @@ export default function CreateProductPage() {
   const [formData, setFormData] = useState({
     title: "",
     price: "",
+    stock: "",
     brandId: "",
     categoryId: "",
     imageUrl: "",
@@ -16,13 +17,46 @@ export default function CreateProductPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [brands, setBrands] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [listsLoading, setListsLoading] = useState(true);
+
   const router = useRouter();
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [b, c] = await Promise.all([
+          fetch("/api/brands", { cache: "no-store" }).then((r) => r.json()),
+          fetch("/api/categories", { cache: "no-store" }).then((r) => r.json()),
+        ]);
+        const bList = Array.isArray(b) ? b : b?.items ?? [];
+        const cList = Array.isArray(c) ? c : c?.items ?? [];
+        if (!cancelled) {
+          setBrands(bList);
+          setCategories(cList);
+        }
+      } catch {
+        if (!cancelled) {
+          setBrands([]);
+          setCategories([]);
+        }
+      } finally {
+        if (!cancelled) setListsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
+    setFormData((s) => ({
+      ...s,
       [e.target.name]: e.target.value,
-    });
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -31,24 +65,38 @@ export default function CreateProductPage() {
     setError("");
 
     try {
-      const response = await fetch("/api/products", {
+      const payload = {
+        title: formData.title,
+        description: formData.description || null,
+        price: parseFloat(formData.price),
+        stock: parseInt(formData.stock || "0", 10),
+        imageUrl: formData.imageUrl || null,
+        brandId: formData.brandId ? parseInt(formData.brandId, 10) : null,
+        categoryId: formData.categoryId
+          ? parseInt(formData.categoryId, 10)
+          : null,
+      };
+
+      const response = await fetch("/api/admin/products", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Ürün oluşturulamadı");
+        let msg = "Ürün oluşturulamadı";
+        try {
+          const err = await response.json();
+          msg = err?.message || msg;
+        } catch {}
+        throw new Error(msg);
       }
 
-      const newProduct = await response.json();
+      await response.json();
       alert("Ürün başarıyla oluşturuldu!");
-      router.push(`/admin/products`);
+      router.push("/admin/products");
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Bilinmeyen hata");
     } finally {
       setLoading(false);
     }
@@ -61,9 +109,13 @@ export default function CreateProductPage() {
         <div className="flex items-center justify-between">
           <div>
             <nav className="text-sm text-neutral-600 flex items-center gap-2 mb-4">
-              <Link href="/admin" className="hover:underline">Admin</Link>
+              <Link href="/admin" className="hover:underline">
+                Admin
+              </Link>
               <span>›</span>
-              <Link href="/admin/products" className="hover:underline">Ürünler</Link>
+              <Link href="/admin/products" className="hover:underline">
+                Ürünler
+              </Link>
               <span>›</span>
               <span className="text-neutral-900 font-semibold">Yeni Ürün</span>
             </nav>
@@ -95,7 +147,10 @@ export default function CreateProductPage() {
 
             {/* Ürün Adı */}
             <div>
-              <label htmlFor="title" className="block text-sm font-medium text-neutral-700 mb-2">
+              <label
+                htmlFor="title"
+                className="block text-sm font-medium text-neutral-700 mb-2"
+              >
                 Ürün Adı *
               </label>
               <input
@@ -112,7 +167,10 @@ export default function CreateProductPage() {
 
             {/* Fiyat */}
             <div>
-              <label htmlFor="price" className="block text-sm font-medium text-neutral-700 mb-2">
+              <label
+                htmlFor="price"
+                className="block text-sm font-medium text-neutral-700 mb-2"
+              >
                 Fiyat (TL) *
               </label>
               <input
@@ -129,45 +187,89 @@ export default function CreateProductPage() {
               />
             </div>
 
-            {/* Marka */}
+            {/* Stok */}
             <div>
-              <label htmlFor="brandId" className="block text-sm font-medium text-neutral-700 mb-2">
-                Marka ID
+              <label
+                htmlFor="stock"
+                className="block text-sm font-medium text-neutral-700 mb-2"
+              >
+                Stok Adedi *
               </label>
               <input
-                type="text"
-                id="brandId"
-                name="brandId"
-                value={formData.brandId}
+                type="number"
+                id="stock"
+                name="stock"
+                required
+                min="0"
+                step="1"
+                value={formData.stock}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                placeholder="Marka ID'sini girin"
+                placeholder="0"
               />
+            </div>
+
+            {/* Marka */}
+            <div>
+              <label
+                htmlFor="brandId"
+                className="block text-sm font-medium text-neutral-700 mb-2"
+              >
+                Marka *
+              </label>
+              <select
+                id="brandId"
+                name="brandId"
+                required
+                value={formData.brandId}
+                onChange={handleChange}
+                disabled={listsLoading}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
+              >
+                <option value="">Seçiniz</option>
+                {brands.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Kategori */}
             <div>
-              <label htmlFor="categoryId" className="block text-sm font-medium text-neutral-700 mb-2">
-                Kategori ID
+              <label
+                htmlFor="categoryId"
+                className="block text-sm font-medium text-neutral-700 mb-2"
+              >
+                Kategori *
               </label>
-              <input
-                type="text"
+              <select
+                required
                 id="categoryId"
                 name="categoryId"
                 value={formData.categoryId}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                placeholder="Kategori ID'sini girin"
-              />
+                disabled={listsLoading}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
+              >
+                <option value="">Seçiniz</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Görsel URL */}
             <div>
-              <label htmlFor="imageUrl" className="block text-sm font-medium text-neutral-700 mb-2">
+              <label
+                htmlFor="imageUrl"
+                className="block text-sm font-medium text-neutral-700 mb-2"
+              >
                 Görsel URL
               </label>
               <input
-                type="url"
                 id="imageUrl"
                 name="imageUrl"
                 value={formData.imageUrl}
@@ -179,8 +281,11 @@ export default function CreateProductPage() {
 
             {/* Açıklama */}
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-neutral-700 mb-2">
-                Açıklama
+              <label
+                htmlFor="description"
+                className="block text-sm font-medium text-neutral-700 mb-2"
+              >
+                Ürün Açıklaması
               </label>
               <textarea
                 id="description"
@@ -193,11 +298,11 @@ export default function CreateProductPage() {
               />
             </div>
 
-            {/* Submit Button */}
+            {/* Submit */}
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || listsLoading}
                 className="flex-1 bg-amber-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Oluşturuluyor..." : "Ürünü Oluştur"}

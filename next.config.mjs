@@ -4,10 +4,14 @@ const nextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "picsum.photos" },
-      // Backend’ten ürün görselleri geliyorsa onları da ekle:
-      // { protocol: "http", hostname: "localhost" }, // dev ortam
-      // { protocol: "https", hostname: "api.senin-domain.com" },
+      { protocol: 'https', hostname: "www.merlinbikegear.com"},
+      { protocol: 'https' , hostname: "imgbb.com"}
+      
+      // { protocol: "http", hostname: "localhost" }, 
     ],
+
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 31536000,
   },
 };
 

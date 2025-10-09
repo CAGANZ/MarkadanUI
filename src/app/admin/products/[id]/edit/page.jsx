@@ -1,60 +1,127 @@
-// src/app/admin/products/[id]/edit/page.jsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
-export default function EditProductPage({ params }) {
-  const [product, setProduct] = useState(null);
+export default function EditProductPage() {
+  // Next 15: client tarafında params almak için hook
+  const params = useParams(); // { id: "3" }
+  const id = params?.id;
+
+  const [original, setOriginal] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
     price: "",
+    stock: "",
     brandId: "",
     categoryId: "",
     imageUrl: "",
     description: "",
   });
+
+  const [brands, setBrands] = useState([]);
+  const [categories, setCategories] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const router = useRouter();
 
-  useEffect(() => {
-    if (params?.id) {
-      fetchProduct();
-    }
-  }, [params?.id]);
-
-  const fetchProduct = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/products/${params.id}`);
-      if (!response.ok) {
-        throw new Error("Ürün bulunamadı");
-      }
-      const productData = await response.json();
-      setProduct(productData);
-      setFormData({
-        title: productData.title || "",
-        price: productData.price || "",
-        brandId: productData.brandId || "",
-        categoryId: productData.categoryId || "",
-        imageUrl: productData.imageUrl || "",
-        description: productData.description || "",
-      });
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  const [toast, setToast] = useState(null);
+  const showToast = (type, msg) => {
+    setToast({ type, msg });
+    setTimeout(() => setToast(null), 2500);
   };
 
+  // ürün + listeleri yükle
+  useEffect(() => {
+    let cancelled = false;
+    if (!id) return;
+
+    (async () => {
+      try {
+        setLoading(true);
+
+        const [prodRes, bRes, cRes] = await Promise.all([
+          fetch(`/api/admin/products/${id}`, { cache: "no-store" }),
+          fetch("/api/admin/brands", { cache: "no-store" }),
+          fetch("/api/admin/categories", { cache: "no-store" }),
+        ]);
+
+        if (!prodRes.ok) throw new Error("Ürün bulunamadı");
+
+        const productData = await prodRes.json();
+        const bJson = await bRes.json();
+        const cJson = await cRes.json();
+
+        const bList = Array.isArray(bJson) ? bJson : (bJson?.items ?? bJson ?? []);
+        const cList = Array.isArray(cJson) ? cJson : (cJson?.items ?? cJson ?? []);
+
+        if (cancelled) return;
+
+        setBrands(bList);
+        setCategories(cList);
+        setOriginal(productData);
+        setFormData({
+          title: productData.title ?? "",
+          price: productData.price ?? "",
+          stock: productData.stock ?? "",
+          brandId: productData.brandId ?? "",
+          categoryId: productData.categoryId ?? "",
+          imageUrl: productData.imageUrl ?? "",
+          description: productData.description ?? "",
+        });
+      } catch (e) {
+        if (!cancelled) setError(e.message || "Yükleme hatası");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [id]);
+
+  // sadece değişen alanları gönder
+  const diffPayload = useMemo(() => {
+    if (!original) return null;
+
+    const toNum = (v, kind) => {
+      if (v === "" || v === null || v === undefined) return v;
+      if (kind === "int") return Number.isNaN(parseInt(v, 10)) ? v : parseInt(v, 10);
+      if (kind === "float") return Number.isNaN(parseFloat(v)) ? v : parseFloat(v);
+      return v;
+    };
+
+    const current = {
+      title: formData.title,
+      description: formData.description || null,
+      price: toNum(formData.price, "float"),
+      stock: toNum(formData.stock, "int"),
+      imageUrl: formData.imageUrl || null,
+      brandId: formData.brandId === "" ? null : toNum(formData.brandId, "int"),
+      categoryId: formData.categoryId === "" ? null : toNum(formData.categoryId, "int"),
+    };
+
+    const base = {
+      title: original.title ?? null,
+      description: original.description ?? null,
+      price: original.price ?? null,
+      stock: original.stock ?? null,
+      imageUrl: original.imageUrl ?? null,
+      brandId: original.brandId ?? null,
+      categoryId: original.categoryId ?? null,
+    };
+
+    const body = {};
+    for (const k of Object.keys(current)) {
+      if (current[k] !== base[k]) body[k] = current[k];
+    }
+    return body;
+  }, [formData, original]);
+
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData((s) => ({ ...s, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -63,23 +130,39 @@ export default function EditProductPage({ params }) {
     setError("");
 
     try {
-      const response = await fetch(`/api/products/${params.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Ürün güncellenemedi");
+      if (!diffPayload || Object.keys(diffPayload).length === 0) {
+        showToast("info", "Değişiklik yapılmadı");
+        return;
       }
 
-      alert("Ürün başarıyla güncellendi!");
-      router.push(`/admin/products`);
+      const res = await fetch(`/api/admin/products/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(diffPayload),
+      });
+
+      if (!res.ok) {
+        let msg = "Ürün güncellenemedi";
+        try { msg = (await res.json())?.message || msg; } catch {}
+        throw new Error(msg);
+      }
+
+      const updated = await res.json();
+      setOriginal(updated);
+      setFormData({
+        title: updated.title ?? "",
+        price: updated.price ?? "",
+        stock: updated.stock ?? "",
+        brandId: updated.brandId ?? "",
+        categoryId: updated.categoryId ?? "",
+        imageUrl: updated.imageUrl ?? "",
+        description: updated.description ?? "",
+      });
+      showToast("success", "Değişiklikler kaydedildi");
+      // sayfada kalıyoruz
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Bilinmeyen hata");
+      showToast("error", err.message || "Hata oluştu");
     } finally {
       setSaving(false);
     }
@@ -114,6 +197,21 @@ export default function EditProductPage({ params }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-amber-100 text-neutral-900">
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed top-4 right-4 z-50 rounded-lg px-4 py-2 text-sm shadow ${
+            toast.type === "success"
+              ? "bg-green-600 text-white"
+              : toast.type === "error"
+              ? "bg-red-600 text-white"
+              : "bg-neutral-800 text-white"
+          }`}
+        >
+          {toast.msg}
+        </div>
+      )}
+
       {/* Header */}
       <header className="px-6 pt-10 pb-6 max-w-7xl mx-auto">
         <div className="flex items-center justify-between">
@@ -129,12 +227,12 @@ export default function EditProductPage({ params }) {
               Ürün Düzenle
             </h1>
             <p className="mt-2 text-sm md:text-base text-neutral-600">
-              {product?.title} - Ürün bilgilerini güncelleyin
+              {original?.title} (ID: {id})
             </p>
           </div>
           <div className="flex gap-3">
             <Link
-              href={`/products/${params.id}`}
+              href={`/products/${id}`}
               className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-neutral-800 border border-neutral-200 hover:bg-neutral-50"
             >
               Görüntüle
@@ -153,106 +251,98 @@ export default function EditProductPage({ params }) {
       <main className="px-6 pb-16 max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-md border border-neutral-200 p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-800 text-sm">{error}</p>
-              </div>
-            )}
-
             {/* Ürün Adı */}
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-neutral-700 mb-2">
-                Ürün Adı *
+                Ürün Adı
               </label>
               <input
-                type="text"
-                id="title"
-                name="title"
-                required
-                value={formData.title}
-                onChange={handleChange}
+                id="title" name="title" type="text"
+                value={formData.title} onChange={handleChange}
                 className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                placeholder="Ürün adını girin"
+                placeholder="Ürün adı"
               />
             </div>
 
             {/* Fiyat */}
             <div>
               <label htmlFor="price" className="block text-sm font-medium text-neutral-700 mb-2">
-                Fiyat (TL) *
+                Fiyat (TL)
               </label>
               <input
-                type="number"
-                id="price"
-                name="price"
-                required
-                min="0"
-                step="0.01"
-                value={formData.price}
-                onChange={handleChange}
+                id="price" name="price" type="number" min="0" step="0.01"
+                value={formData.price} onChange={handleChange}
                 className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                 placeholder="0.00"
+              />
+            </div>
+
+            {/* Stok */}
+            <div>
+              <label htmlFor="stock" className="block text-sm font-medium text-neutral-700 mb-2">
+                Stok
+              </label>
+              <input
+                id="stock" name="stock" type="number" min="0" step="1"
+                value={formData.stock} onChange={handleChange}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                placeholder="0"
               />
             </div>
 
             {/* Marka */}
             <div>
               <label htmlFor="brandId" className="block text-sm font-medium text-neutral-700 mb-2">
-                Marka ID
+                Marka
               </label>
-              <input
-                type="text"
-                id="brandId"
-                name="brandId"
-                value={formData.brandId}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                placeholder="Marka ID'sini girin"
-              />
+              <select
+                id="brandId" name="brandId" value={formData.brandId} onChange={handleChange}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
+              >
+                <option value="">Seçiniz</option>
+                {brands.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
             </div>
 
             {/* Kategori */}
             <div>
               <label htmlFor="categoryId" className="block text-sm font-medium text-neutral-700 mb-2">
-                Kategori ID
+                Kategori
               </label>
-              <input
-                type="text"
-                id="categoryId"
-                name="categoryId"
-                value={formData.categoryId}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                placeholder="Kategori ID'sini girin"
-              />
+              <select
+                id="categoryId" name="categoryId" value={formData.categoryId} onChange={handleChange}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
+              >
+                <option value="">Seçiniz</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
             </div>
 
-            {/* Görsel URL */}
+            {/* Görsel URL + önizleme */}
             <div>
               <label htmlFor="imageUrl" className="block text-sm font-medium text-neutral-700 mb-2">
                 Görsel URL
               </label>
               <input
-                type="url"
-                id="imageUrl"
-                name="imageUrl"
-                value={formData.imageUrl}
-                onChange={handleChange}
+                id="imageUrl" name="imageUrl" type="url"
+                value={formData.imageUrl} onChange={handleChange}
                 className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                 placeholder="https://example.com/image.jpg"
               />
-              {formData.imageUrl && (
+              {formData.imageUrl ? (
                 <div className="mt-2">
                   <img
                     src={formData.imageUrl}
                     alt="Önizleme"
                     className="h-24 w-24 object-cover rounded-lg border border-neutral-200"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                    }}
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
                   />
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* Açıklama */}
@@ -261,21 +351,19 @@ export default function EditProductPage({ params }) {
                 Açıklama
               </label>
               <textarea
-                id="description"
-                name="description"
-                rows={4}
-                value={formData.description}
-                onChange={handleChange}
+                id="description" name="description" rows={4}
+                value={formData.description} onChange={handleChange}
                 className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                placeholder="Ürün açıklamasını girin"
+                placeholder="Ürün açıklaması"
               />
             </div>
 
-            {/* Submit Button */}
+            {/* Submit */}
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
                 disabled={saving}
+                onClick={handleSubmit}
                 className="flex-1 bg-amber-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? "Kaydediliyor..." : "Değişiklikleri Kaydet"}
