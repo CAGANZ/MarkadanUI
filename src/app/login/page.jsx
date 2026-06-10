@@ -1,133 +1,98 @@
 "use client";
+// src/app/login/page.jsx
+// Giriş — BFF üzerinden httpOnly cookie oturumu. Token tarayıcıya inmez.
+import { Suspense, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-
-export default function LoginPage() {
-  const [formData, setFormData] = useState({
-    UserNameOrEmail: "",
-    password: "",
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+function LoginForm() {
   const router = useRouter();
+  const sp = useSearchParams();
+  const { login } = useAuth();
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const [form, setForm] = useState({ userNameOrEmail: "", password: "" });
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const next = sp.get("next") || "/";
+
+  const submit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
     setError("");
 
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+    if (!form.userNameOrEmail.trim() || !form.password) {
+      setError("E-posta/kullanıcı adı ve şifre zorunludur.");
+      return;
+    }
 
-      if (response.ok) {
-        const data = await response.json();
-        // Token'ı localStorage'a kaydet
-        if (data.token) {
-          localStorage.setItem("token", data.token);
-        }
-        // Ana sayfaya yönlendir
-        router.push("/");
-      } else {
-        const errorText = await response.text();
-        setError(errorText || "Giriş başarısız");
-      }
-    } catch (error) {
-      setError("Bir hata oluştu. Lütfen tekrar deneyin.");
+    setBusy(true);
+    try {
+      const user = await login(form.userNameOrEmail.trim(), form.password);
+      // Admin kullanıcıyı doğrudan panele götür
+      router.push(user.isAdmin ? "/admin" : next);
+    } catch (err) {
+      setError(err.detail || "Giriş yapılamadı.");
     } finally {
-      setIsLoading(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-amber-50 to-amber-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-neutral-900">
-            Hesabınıza giriş yapın
-          </h2>
-          <p className="mt-2 text-center text-sm text-neutral-600">
-            Markadan'a hoş geldiniz
+    <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col justify-center px-4 py-10">
+      <h1 className="mb-1 text-2xl font-bold tracking-tight text-ink">Giriş Yap</h1>
+      <p className="mb-6 text-sm text-ink-soft">
+        Sepetinize ve siparişlerinize ulaşmak için giriş yapın.
+      </p>
+
+      <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+        <Input
+          label="E-posta veya kullanıcı adı"
+          name="userNameOrEmail"
+          type="text"
+          autoComplete="username"
+          value={form.userNameOrEmail}
+          onChange={(e) => setForm((f) => ({ ...f, userNameOrEmail: e.target.value }))}
+        />
+        <Input
+          label="Şifre"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          value={form.password}
+          onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+        />
+
+        {error && (
+          <p role="alert" className="rounded-base bg-danger-soft px-3 py-2 text-sm font-medium text-danger">
+            {error}
           </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="UserNameOrEmail" className="sr-only">
-                Kullanıcı adı veya E-posta
-              </label>
-              <input
-                id="UserNameOrEmail"
-                name="UserNameOrEmail"
-                type="text"
-                autoComplete="username"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-neutral-300 placeholder-neutral-500 text-neutral-900 rounded-t-md focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
-                placeholder="Kullanıcı adı veya E-posta"
-                value={formData.UserNameOrEmail}
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Şifre
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-neutral-300 placeholder-neutral-500 text-neutral-900 rounded-b-md focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
-                placeholder="Şifre"
-                value={formData.password}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
+        )}
 
-          {error && (
-            <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-md">
-              {error}
-            </div>
-          )}
+        <Button type="submit" size="lg" loading={busy}>
+          Giriş Yap
+        </Button>
+      </form>
 
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? "Giriş yapılıyor..." : "Giriş yap"}
-            </button>
-          </div>
-
-          <div className="text-center">
-            <p className="text-sm text-neutral-600">
-              Hesabınız yok mu?{" "}
-              <a
-                href="#"
-                className="font-medium text-amber-600 hover:text-amber-500"
-              >
-                Kayıt olun
-              </a>
-            </p>
-          </div>
-        </form>
-      </div>
+      <p className="mt-6 text-center text-sm text-ink-soft">
+        Hesabınız yok mu?{" "}
+        <Link
+          href={`/register${next !== "/" ? `?next=${encodeURIComponent(next)}` : ""}`}
+          className="font-semibold text-accent hover:underline"
+        >
+          Kayıt olun
+        </Link>
+      </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

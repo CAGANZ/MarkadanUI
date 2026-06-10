@@ -1,6 +1,7 @@
 // src/app/layout.js
 import "./globals.css";
-import Header from "@/components/Header";
+import Header from "@/components/layout/Header";
+import MobileNav from "@/components/layout/MobileNav";
 import Providers from "./providers";
 import { BOUTIQUE } from "@/config/boutique";
 
@@ -23,15 +24,18 @@ export default function RootLayout({ children }) {
           </div>
 
           {/* Sayfa içeriği */}
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 pb-14 sm:pb-0">{children}</main>
 
           {/* Global footer */}
           <footer className="border-t border-line bg-surface-card">
-            <div className="mx-auto max-w-7xl px-4 py-6 text-sm text-ink-soft sm:px-6">
+            <div className="mx-auto max-w-7xl px-4 py-6 pb-20 text-sm text-ink-soft sm:px-6 sm:pb-6">
               © {new Date().getFullYear()} {BOUTIQUE.name}
               {BOUTIQUE.contact.phone && ` · ${BOUTIQUE.contact.phone}`}
             </div>
           </footer>
+
+          {/* Mobil alt navigasyon */}
+          <MobileNav />
         </Providers>
       </body>
     </html>
