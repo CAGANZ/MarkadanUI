@@ -69,11 +69,35 @@ export function CartProvider({ children }) {
     await reload();
   }, [reload]);
 
+  // Fiyat değişikliklerini onayla: backend'de snapshot tazeleme ucu olmadığından
+  // fiyatı değişen satırlar silinip aynı miktarla yeniden eklenir (yeni snapshot).
+  const acceptPriceChanges = useCallback(async () => {
+    const changed = (cart?.items ?? []).filter((it) => it.priceChanged);
+    for (const it of changed) {
+      await api(`/me/cart/items/${it.id}`, { method: "DELETE" });
+      await api("/me/cart/items", {
+        method: "POST",
+        body: { productId: it.productId, quantity: it.quantity },
+      });
+    }
+    await reload();
+  }, [cart, reload]);
+
   const count = cart?.items?.reduce((acc, it) => acc + it.quantity, 0) ?? 0;
 
   return (
     <CartContext.Provider
-      value={{ cart, count, loading, reload, addItem, updateItem, removeItem, clear }}
+      value={{
+        cart,
+        count,
+        loading,
+        reload,
+        addItem,
+        updateItem,
+        removeItem,
+        clear,
+        acceptPriceChanges,
+      }}
     >
       {children}
     </CartContext.Provider>

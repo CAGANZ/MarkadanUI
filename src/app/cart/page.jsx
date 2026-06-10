@@ -18,7 +18,7 @@ import CartLine from "@/components/cart/CartLine";
 
 export default function CartPage() {
   const { user, loading: authLoading } = useAuth();
-  const { cart, loading, reload, updateItem, removeItem, clear } = useCart();
+  const { cart, loading, updateItem, removeItem, clear, acceptPriceChanges } = useCart();
   const router = useRouter();
   const toast = useToast();
 
@@ -65,12 +65,14 @@ export default function CartPage() {
     }
   };
 
-  // Fiyat değişikliklerini onayla: sepeti tazele → backend snapshot'ları günceller
+  // Fiyat değişikliklerini onayla: değişen satırlar güncel fiyatla yenilenir
   const acceptPrices = async () => {
     setBusy(true);
     try {
-      await reload();
+      await acceptPriceChanges();
       toast.success("Güncel fiyatlar onaylandı");
+    } catch (err) {
+      toast.error(err.detail || "Fiyatlar güncellenemedi");
     } finally {
       setBusy(false);
     }
