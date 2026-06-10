@@ -1,26 +1,36 @@
 @import "tailwindcss";
+@import "./theme.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* Tema değişkenlerini Tailwind utility'lerine bağla:
+   bg-primary, text-ink, border-line, bg-surface-card, rounded-base ... */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-primary: var(--mk-primary);
+  --color-primary-soft: var(--mk-primary-soft);
+  --color-accent: var(--mk-accent);
+  --color-accent-soft: var(--mk-accent-soft);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-surface: var(--mk-surface);
+  --color-surface-card: var(--mk-surface-card);
+  --color-ink: var(--mk-ink);
+  --color-ink-soft: var(--mk-ink-soft);
+  --color-line: var(--mk-line);
+
+  --color-danger: var(--mk-danger);
+  --color-danger-soft: var(--mk-danger-soft);
+  --color-success: var(--mk-success);
+  --color-success-soft: var(--mk-success-soft);
+  --color-warning: var(--mk-warning);
+  --color-warning-soft: var(--mk-warning-soft);
+
+  --radius-base: var(--mk-radius);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--mk-surface);
+  color: var(--mk-ink);
+}
+
+/* Mobilde dokunma hedefi güvencesi */
+@media (pointer: coarse) {
+  button, a, input, select { min-height: 44px; }
 }

@@ -1,6 +1,6 @@
-// src/app/api/auth/login/route.js
-// POST /auth/login → başarılıysa token'ları httpOnly cookie'ye yazar,
-// tarayıcıya yalnızca kullanıcı bilgisi döner (token asla inmez).
+// src/app/api/auth/register/route.js
+// POST /auth/register → kayıt başarılıysa otomatik giriş yapılmış olur
+// (backend LoginResultDTO döner), token'lar cookie'ye yazılır.
 import { cookies } from "next/headers";
 import { backendFetch, setAuthCookies, passThrough } from "@/lib/server/api";
 
@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 export async function POST(request) {
   const body = await request.json();
-  const res = await backendFetch("/auth/login", { method: "POST", body, auth: false });
+  const res = await backendFetch("/auth/register", { method: "POST", body, auth: false });
 
   if (!res.ok) return passThrough(res);
 
@@ -16,7 +16,6 @@ export async function POST(request) {
   const store = await cookies();
   setAuthCookies(store, data);
 
-  // Token'ları çıkarıp yalnızca güvenli alanları döndür
   const { accessToken, refreshToken, expiresAtUtc, ...user } = data;
   return Response.json(user);
 }

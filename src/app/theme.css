@@ -1,0 +1,32 @@
+/* src/app/theme.css
+   ============================================================
+   WHITE-LABEL TEMA — butik başına değiştirilen tek stil dosyası
+   Bileşenlerde sabit renk kodu KULLANILMAZ; yalnızca bu
+   değişkenlere bağlı utility'ler kullanılır (bg-primary gibi).
+   ============================================================ */
+
+:root {
+  /* Marka renkleri */
+  --mk-primary: #1f2933;        /* birincil aksiyon: butonlar, vurgu */
+  --mk-primary-soft: #e8ebee;   /* birincil rengin yumuşak zemini */
+  --mk-accent: #c2703d;         /* ikincil vurgu: rozet, indirim, detay */
+  --mk-accent-soft: #f9ede4;    /* vurgu renginin yumuşak zemini */
+
+  /* Zemin ve metin */
+  --mk-surface: #faf8f5;        /* sayfa zemini (sıcak beyaz) */
+  --mk-surface-card: #ffffff;   /* kart zemini */
+  --mk-ink: #1c1917;            /* ana metin */
+  --mk-ink-soft: #6b6560;       /* ikincil metin */
+  --mk-line: #e7e2dc;           /* çizgi/kenarlık */
+
+  /* Durum renkleri */
+  --mk-danger: #b3261e;
+  --mk-danger-soft: #fceeed;
+  --mk-success: #1e7d4f;
+  --mk-success-soft: #e9f5ef;
+  --mk-warning: #9a6700;
+  --mk-warning-soft: #fdf3d7;
+
+  /* Şekil */
+  --mk-radius: 0.75rem;         /* kart ve buton yuvarlaklığı */
+}
