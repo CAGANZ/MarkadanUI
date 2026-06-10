@@ -1,26 +1,14 @@
+// src/app/api/admin/brands/route.js
+import { backendFetch, passThrough } from "@/lib/server/api";
 
+export const runtime = "nodejs";
 
-export const dynamic = "force-dynamic";
-
+// Admin marka listesi (admin ekranlarının select'leri de buradan beslenir)
 export async function GET() {
-  const upstream = await fetch(`${process.env.API_BASE_URL}/brands`, {
-    headers: { accept: "application/json" },
-    cache: "no-store",
-  });
-
-  const body = await upstream.text().catch(() => "");
-  return new Response(body, {
-    status: upstream.status,
-    headers: {
-      "content-type": upstream.headers.get("content-type") ?? "application/json",
-    },
-  });
+  return passThrough(await backendFetch("/brands", { auth: false }));
 }
 
-
-export async function DELETE(_req, { params }) {
-  const url = `${process.env.API_BASE_URL}/admin/brands/${params.id}`;
-  const res = await fetch(url, { method: "DELETE", headers: { accept: "application/json" }, cache: "no-store" });
-  if (!res.ok) return new Response(await res.text(), { status: res.status });
-  return Response.json({ ok: true });
+export async function POST(request) {
+  const body = await request.json();
+  return passThrough(await backendFetch("/admin/brands", { method: "POST", body }));
 }
