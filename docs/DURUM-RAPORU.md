@@ -225,7 +225,98 @@ sipariş kanalı. Türkiye'de esnaf segmentinde checkout dönüşümünden daha 
 
 ---
 
-### GÖREV 7 — Deploy hazırlığı (MİMARLA BİRLİKTE — tek başına başlama)
+### GÖREV 7 — Toplu ürün yükleme (CSV) — Admin
+**Süre tahmini:** 2-3 saat | **Zorluk:** Düşük-Orta | **Backend:** ✅ hazır
+
+Backend ucu: `POST /admin/products/bulk` — `multipart/form-data`, alan adı `file`, `.csv` uzantısı zorunlu.
+Maksimum dosya boyutu: 10 MB. Dönen yapı:
+```json
+{ "succeeded": 12, "failed": 3, "errors": [{ "row": 4, "reason": "Bilinmeyen marka: XYZ" }] }
+```
+
+**CSV formatı (başlık satırı zorunlu):**
+```
+Title,Description,Price,Stock,BrandName,CategoryName,ImageUrl
+Ürün A,Açıklama,149.90,50,Nike,Ayakkabı,https://...
+```
+
+**Yapılacaklar:**
+1. `src/app/admin/products/page.jsx` listesine "CSV Yükle" butonu ekle (`variant="secondary"`).
+2. Tıklanınca modal aç (`ui/Modal`):
+   - `<input type="file" accept=".csv">` (stil için `ui/Input` yetersizse özel wrapper ok)
+   - "Yükle" butonu: `api("/admin/products/bulk", { method: "POST", body: formData })` — dikkat: `body` burada `FormData` olacak, `api()` fonksiyonu `Content-Type` header'ını otomatik ayarlıyor mu kontrol et; ayarlamıyorsa `fetch` ile doğrudan çağır.
+   - Yanıt sonrası: başarı sayısını toast ile göster; hata varsa modal içinde satır bazlı hata listesi göster (kapatılabilir özet, tam liste scroll'lanabilir).
+3. Yükleme bittikten sonra ürün listesini yenile.
+
+**Kabul kriteri:** 3 geçerli + 2 hatalı satır içeren CSV yüklenir; 3 ürün eklenir, 2 hata satır numarasıyla gösterilir.
+
+---
+
+### GÖREV 8 — Favori listesi (Wishlist) — Müşteri
+**Süre tahmini:** 3-4 saat | **Zorluk:** Orta | **Backend:** ✅ hazır
+
+Backend uçları:
+- `GET /me/wishlist` → `[{ id, productId, productTitle, productPrice, productImageUrl, addedAt }]`
+- `POST /me/wishlist/items` → `{ productId: 123 }` — 409 dönerse "zaten favorilerde"
+- `DELETE /me/wishlist/items/{id}` — id: wishlistItem id'si (productId değil)
+
+**Yapılacaklar:**
+1. **Ürün detay sayfası** (`src/app/products/[id]/page.jsx` veya bileşeni):
+   - Kalp ikonu butonu ekle. Giriş yapılmamışsa `/login?next=...`'e yönlendir.
+   - Durumu `GET /me/wishlist` ile tespit et (sayfada zaten sepet kontrolü var, benzer desen).
+   - Tıklanınca toggle: ekle veya çıkar. Optimistic UI tercih edilir ama zorunlu değil.
+2. **`/account/wishlist` sayfası** (yeni — `src/app/account/wishlist/page.jsx`):
+   - Giriş gerektiren, `useAuth()` kontrolü ile.
+   - Favori ürün kartları: resim + isim + fiyat + "Favoriden Çıkar" butonu.
+   - Boş durum: "Henüz favori ürün eklemediniz." + ürünlere git CTA.
+3. Hesabım nav'ına (`src/app/account/layout.js` veya sidebar) "Favorilerim" linki ekle.
+
+**Not:** Backend fiyat/stok değişince wishlist kullanıcılarına e-posta gönderiyor (G2). UI'ın bunu tetiklemesi gerekmiyor — otomatik çalışır.
+
+**Kabul kriteri:** Ürün detaydan favori eklenir; `/account/wishlist`'te görünür; kaldırılabilir.
+
+---
+
+### GÖREV 9 — Mağaza Ayarları — Admin
+**Süre tahmini:** 2-3 saat | **Zorluk:** Düşük | **Backend:** ✅ hazır
+
+Backend uçları:
+- `GET /store-settings` — herkese açık, auth yok
+- `GET /admin/settings` — admin token
+- `PUT /admin/settings` — admin token, body: tüm alanlar
+
+**DTO (PUT body & GET yanıtı):**
+```json
+{
+  "storeName": "Mağazam",
+  "logoUrl": "https://...",
+  "description": "Kısa açıklama",
+  "whatsAppPhone": "905xxxxxxxxx",
+  "contactPhone": "05xx",
+  "contactEmail": "info@magaza.com",
+  "instagramUrl": "https://instagram.com/...",
+  "facebookUrl": "https://facebook.com/...",
+  "primaryColor": "#FF6B35",
+  "accentColor": "#2EC4B6",
+  "metaDescription": "SEO açıklaması"
+}
+```
+
+Renk alanları için validation: `^#[0-9A-Fa-f]{6}$` (6 haneli hex, `#` ile başlar).
+
+**Yapılacaklar:**
+1. `src/app/admin/settings/page.jsx` (yeni) — ayarlar formu:
+   - `ui/Input` ile tüm alanlar; renk alanları için `<input type="color">` + text input birlikte kullanılabilir.
+   - `GET /admin/settings` ile mevcut değerleri doldur.
+   - `PUT /admin/settings` ile kaydet; toast ile bildir.
+2. Admin nav'ına "Mağaza Ayarları" linki ekle (`src/app/admin/layout.js`).
+3. **Opsiyonel:** `GET /store-settings` çıktısını Header/Footer'da kullan (mağaza adı, logo, iletişim linkleri).
+
+**Kabul kriteri:** Admin panelinden mağaza adı değiştirilince kaydedilir, tekrar açınca aynı değer gelir.
+
+---
+
+### GÖREV 10 — Deploy hazırlığı (MİMARLA BİRLİKTE — tek başına başlama)
 Hosting seçimi, production env, butik şablonlaması (`boutique.js` + `theme.css` + logo)
 mimari karar gerektirir. Görev 1-5 bittiğinde mimarla planlanacak.
 
