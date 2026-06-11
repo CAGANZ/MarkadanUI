@@ -1,21 +1,21 @@
 "use client";
 // src/components/admin/AdminGuard.jsx
-// Admin sayfalarını korur: oturum yoksa login'e, isAdmin değilse ana sayfaya.
-// (Backend zaten 403 döner; bu katman kullanıcı deneyimi içindir.)
+// Admin sayfalarını korur: oturum yoksa login'e (next= ile), isAdmin değilse ana sayfaya.
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import Skeleton from "@/components/ui/Skeleton";
 
 export default function AdminGuard({ children }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (loading) return;
-    if (!user) router.replace("/login?next=/admin");
+    if (!user) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     else if (!user.isAdmin) router.replace("/");
-  }, [user, loading, router]);
+  }, [user, loading, router, pathname]);
 
   if (loading || !user?.isAdmin) {
     return (

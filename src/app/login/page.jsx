@@ -31,8 +31,9 @@ function LoginForm() {
     setBusy(true);
     try {
       const user = await login(form.userNameOrEmail.trim(), form.password);
-      // Admin kullanıcıyı doğrudan panele götür
-      router.push(user.isAdmin ? "/admin" : next);
+      // next parametresi varsa oraya git; yoksa admin → panel, üye → ana sayfa
+      const dest = next !== "/" ? next : user.isAdmin ? "/admin" : "/";
+      router.push(dest);
     } catch (err) {
       setError(err.detail || "Giriş yapılamadı.");
     } finally {
