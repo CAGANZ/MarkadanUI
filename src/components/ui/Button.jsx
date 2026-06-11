@@ -1,6 +1,7 @@
 "use client";
 // src/components/ui/Button.jsx
 // Tek buton bileşeni — tüm projede sabit renk yerine tema utility'leri.
+import { cloneElement } from "react";
 
 const VARIANTS = {
   primary:
@@ -29,13 +30,23 @@ export default function Button({
   disabled,
   className = "",
   type = "button",
+  asChild = false,
   ...props
 }) {
+  const cls = `inline-flex items-center justify-center gap-2 rounded-base font-semibold transition-colors select-none ${VARIANTS[variant]} ${SIZES[size]} ${className}`;
+
+  if (asChild) {
+    return cloneElement(children, {
+      className: `${cls} ${children.props.className ?? ""}`.trim(),
+      ...props,
+    });
+  }
+
   return (
     <button
       type={type}
       disabled={disabled || loading}
-      className={`inline-flex items-center justify-center gap-2 rounded-base font-semibold transition-colors select-none ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
+      className={cls}
       {...props}
     >
       {loading && (

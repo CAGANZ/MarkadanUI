@@ -1,322 +1,210 @@
-// src/app/admin/products/create/page.jsx
 "use client";
-
+// src/app/admin/products/create/page.jsx
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { api } from "@/lib/client/api";
+import { useToast } from "@/components/ui/Toast";
+import Input from "@/components/ui/Input";
+import Button from "@/components/ui/Button";
+
+const EMPTY = { title: "", price: "", stock: "", brandId: "", categoryId: "", imageUrl: "", description: "" };
 
 export default function CreateProductPage() {
-  const [formData, setFormData] = useState({
-    title: "",
-    price: "",
-    stock: "",
-    brandId: "",
-    categoryId: "",
-    imageUrl: "",
-    description: "",
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const router = useRouter();
+  const toast = useToast();
 
+  const [form, setForm] = useState(EMPTY);
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
   const [brands, setBrands] = useState([]);
   const [categories, setCategories] = useState([]);
   const [listsLoading, setListsLoading] = useState(true);
-
-  const router = useRouter();
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const [b, c] = await Promise.all([
-          fetch("/api/brands", { cache: "no-store" }).then((r) => r.json()),
-          fetch("/api/categories", { cache: "no-store" }).then((r) => r.json()),
+          api("/brands"),
+          api("/categories"),
         ]);
-        const bList = Array.isArray(b) ? b : b?.items ?? [];
-        const cList = Array.isArray(c) ? c : c?.items ?? [];
         if (!cancelled) {
-          setBrands(bList);
-          setCategories(cList);
+          setBrands(Array.isArray(b) ? b : b?.items ?? []);
+          setCategories(Array.isArray(c) ? c : c?.items ?? []);
         }
       } catch {
-        if (!cancelled) {
-          setBrands([]);
-          setCategories([]);
-        }
+        // Listeler yüklenemezse boş bırak
       } finally {
         if (!cancelled) setListsLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   const handleChange = (e) => {
-    setFormData((s) => ({
-      ...s,
-      [e.target.name]: e.target.value,
-    }));
+    const { name, value } = e.target;
+    setForm((s) => ({ ...s, [name]: value }));
+    if (errors[name]) setErrors((s) => ({ ...s, [name]: "" }));
+  };
+
+  const validate = () => {
+    const e = {};
+    if (!form.title.trim()) e.title = "Ürün adı zorunludur";
+    if (!form.price || isNaN(parseFloat(form.price)) || parseFloat(form.price) < 0)
+      e.price = "Geçerli bir fiyat giriniz";
+    if (form.stock !== "" && (isNaN(parseInt(form.stock, 10)) || parseInt(form.stock, 10) < 0))
+      e.stock = "Stok 0 veya pozitif bir sayı olmalıdır";
+    if (!form.brandId) e.brandId = "Marka seçiniz";
+    if (!form.categoryId) e.categoryId = "Kategori seçiniz";
+    return e;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const e2 = validate();
+    if (Object.keys(e2).length) { setErrors(e2); return; }
+
     setLoading(true);
-    setError("");
-
     try {
-      const payload = {
-        title: formData.title,
-        description: formData.description || null,
-        price: parseFloat(formData.price),
-        stock: parseInt(formData.stock || "0", 10),
-        imageUrl: formData.imageUrl || null,
-        brandId: formData.brandId ? parseInt(formData.brandId, 10) : null,
-        categoryId: formData.categoryId
-          ? parseInt(formData.categoryId, 10)
-          : null,
-      };
-
-      const response = await fetch("/api/admin/products", {
+      await api("/admin/products", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: {
+          title: form.title,
+          description: form.description || null,
+          price: parseFloat(form.price),
+          stock: parseInt(form.stock || "0", 10),
+          imageUrl: form.imageUrl || null,
+          brandId: parseInt(form.brandId, 10),
+          categoryId: parseInt(form.categoryId, 10),
+        },
       });
-
-      if (!response.ok) {
-        let msg = "Ürün oluşturulamadı";
-        try {
-          const err = await response.json();
-          msg = err?.message || msg;
-        } catch {}
-        throw new Error(msg);
-      }
-
-      await response.json();
-      alert("Ürün başarıyla oluşturuldu!");
+      toast.success("Ürün oluşturuldu");
       router.push("/admin/products");
     } catch (err) {
-      setError(err.message || "Bilinmeyen hata");
+      toast.error(err.detail || "Ürün oluşturulamadı");
     } finally {
       setLoading(false);
     }
   };
 
+  const selectCls =
+    "rounded-base border border-line bg-surface-card px-3.5 py-2.5 text-sm text-ink outline-none transition-colors focus:border-primary disabled:opacity-50";
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50 to-amber-100 text-neutral-900">
-      {/* Header */}
-      <header className="px-6 pt-10 pb-6 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between">
-          <div>
-            <nav className="text-sm text-neutral-600 flex items-center gap-2 mb-4">
-              <Link href="/admin" className="hover:underline">
-                Admin
-              </Link>
-              <span>›</span>
-              <Link href="/admin/products" className="hover:underline">
-                Ürünler
-              </Link>
-              <span>›</span>
-              <span className="text-neutral-900 font-semibold">Yeni Ürün</span>
-            </nav>
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-neutral-800">
-              Yeni Ürün Ekle
-            </h1>
-            <p className="mt-2 text-sm md:text-base text-neutral-600">
-              Yeni ürün bilgilerini girin
-            </p>
+    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <nav className="mb-2 flex items-center gap-2 text-xs text-ink-soft">
+            <Link href="/admin" className="hover:text-ink">Admin</Link>
+            <span>›</span>
+            <Link href="/admin/products" className="hover:text-ink">Ürünler</Link>
+            <span>›</span>
+            <span className="text-ink font-medium">Yeni Ürün</span>
+          </nav>
+          <h1 className="text-2xl font-bold tracking-tight text-ink">Yeni Ürün Ekle</h1>
+        </div>
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/admin/products">Geri</Link>
+        </Button>
+      </div>
+
+      <div className="rounded-base border border-line bg-surface-card p-6 shadow-sm">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Input
+            label="Ürün Adı *"
+            name="title"
+            value={form.title}
+            onChange={handleChange}
+            placeholder="Ürün adını girin"
+            error={errors.title}
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Fiyat (TL) *"
+              name="price"
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.price}
+              onChange={handleChange}
+              placeholder="0.00"
+              error={errors.price}
+            />
+            <Input
+              label="Stok Adedi"
+              name="stock"
+              type="number"
+              min="0"
+              step="1"
+              value={form.stock}
+              onChange={handleChange}
+              placeholder="0"
+              error={errors.stock}
+            />
           </div>
-          <Link
-            href="/admin/products"
-            className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-neutral-800 border border-neutral-200 hover:bg-neutral-50"
-          >
-            Geri
-          </Link>
-        </div>
-      </header>
 
-      {/* Form */}
-      <main className="px-6 pb-16 max-w-4xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-md border border-neutral-200 p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-800 text-sm">{error}</p>
-              </div>
-            )}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-ink">Marka *</label>
+            <select
+              name="brandId"
+              value={form.brandId}
+              onChange={handleChange}
+              disabled={listsLoading}
+              className={`${selectCls} ${errors.brandId ? "border-danger" : ""}`}
+            >
+              <option value="">Seçiniz</option>
+              {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+            {errors.brandId && <p className="text-xs font-medium text-danger">{errors.brandId}</p>}
+          </div>
 
-            {/* Ürün Adı */}
-            <div>
-              <label
-                htmlFor="title"
-                className="block text-sm font-medium text-neutral-700 mb-2"
-              >
-                Ürün Adı *
-              </label>
-              <input
-                type="text"
-                id="title"
-                name="title"
-                required
-                value={formData.title}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                placeholder="Ürün adını girin"
-              />
-            </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-ink">Kategori *</label>
+            <select
+              name="categoryId"
+              value={form.categoryId}
+              onChange={handleChange}
+              disabled={listsLoading}
+              className={`${selectCls} ${errors.categoryId ? "border-danger" : ""}`}
+            >
+              <option value="">Seçiniz</option>
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            {errors.categoryId && <p className="text-xs font-medium text-danger">{errors.categoryId}</p>}
+          </div>
 
-            {/* Fiyat */}
-            <div>
-              <label
-                htmlFor="price"
-                className="block text-sm font-medium text-neutral-700 mb-2"
-              >
-                Fiyat (TL) *
-              </label>
-              <input
-                type="number"
-                id="price"
-                name="price"
-                required
-                min="0"
-                step="0.01"
-                value={formData.price}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                placeholder="0.00"
-              />
-            </div>
+          <Input
+            label="Görsel URL"
+            name="imageUrl"
+            value={form.imageUrl}
+            onChange={handleChange}
+            placeholder="https://example.com/image.jpg"
+          />
 
-            {/* Stok */}
-            <div>
-              <label
-                htmlFor="stock"
-                className="block text-sm font-medium text-neutral-700 mb-2"
-              >
-                Stok Adedi *
-              </label>
-              <input
-                type="number"
-                id="stock"
-                name="stock"
-                required
-                min="0"
-                step="1"
-                value={formData.stock}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                placeholder="0"
-              />
-            </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-ink">Ürün Açıklaması</label>
+            <textarea
+              name="description"
+              rows={4}
+              value={form.description}
+              onChange={handleChange}
+              placeholder="Ürün açıklamasını girin"
+              className="rounded-base border border-line bg-surface-card px-3.5 py-2.5 text-sm text-ink outline-none transition-colors focus:border-primary placeholder:text-ink-soft/60"
+            />
+          </div>
 
-            {/* Marka */}
-            <div>
-              <label
-                htmlFor="brandId"
-                className="block text-sm font-medium text-neutral-700 mb-2"
-              >
-                Marka *
-              </label>
-              <select
-                id="brandId"
-                name="brandId"
-                required
-                value={formData.brandId}
-                onChange={handleChange}
-                disabled={listsLoading}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
-              >
-                <option value="">Seçiniz</option>
-                {brands.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Kategori */}
-            <div>
-              <label
-                htmlFor="categoryId"
-                className="block text-sm font-medium text-neutral-700 mb-2"
-              >
-                Kategori *
-              </label>
-              <select
-                required
-                id="categoryId"
-                name="categoryId"
-                value={formData.categoryId}
-                onChange={handleChange}
-                disabled={listsLoading}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
-              >
-                <option value="">Seçiniz</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Görsel URL */}
-            <div>
-              <label
-                htmlFor="imageUrl"
-                className="block text-sm font-medium text-neutral-700 mb-2"
-              >
-                Görsel URL
-              </label>
-              <input
-                id="imageUrl"
-                name="imageUrl"
-                value={formData.imageUrl}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                placeholder="https://example.com/image.jpg"
-              />
-            </div>
-
-            {/* Açıklama */}
-            <div>
-              <label
-                htmlFor="description"
-                className="block text-sm font-medium text-neutral-700 mb-2"
-              >
-                Ürün Açıklaması
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                rows={4}
-                value={formData.description}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                placeholder="Ürün açıklamasını girin"
-              />
-            </div>
-
-            {/* Submit */}
-            <div className="flex gap-3 pt-4">
-              <button
-                type="submit"
-                disabled={loading || listsLoading}
-                className="flex-1 bg-amber-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? "Oluşturuluyor..." : "Ürünü Oluştur"}
-              </button>
-              <Link
-                href="/admin/products"
-                className="px-6 py-3 rounded-lg font-semibold border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
-              >
-                İptal
-              </Link>
-            </div>
-          </form>
-        </div>
-      </main>
+          <div className="flex gap-3 pt-2">
+            <Button type="submit" variant="primary" size="lg" loading={loading} disabled={listsLoading} className="flex-1">
+              Ürünü Oluştur
+            </Button>
+            <Button variant="ghost" size="lg" asChild>
+              <Link href="/admin/products">İptal</Link>
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
