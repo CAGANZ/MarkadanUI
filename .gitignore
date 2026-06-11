@@ -44,3 +44,4 @@ next-env.d.ts
 # kişisel
 /.env.local
 /Chat gpt ilerlemesi.md
+.gstack/
