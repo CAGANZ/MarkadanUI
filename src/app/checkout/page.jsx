@@ -28,17 +28,20 @@ export default function CheckoutPage() {
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [ordered, setOrdered] = useState(false); // sipariş verildi, cart guard'ı durdur
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login?next=/checkout");
   }, [authLoading, user, router]);
 
   // Sepet boş ya da fiyat onayı bekliyorsa checkout'ta durulmaz
+  // (sipariş verildikten sonra cart boşalır — o durumda yönlendirme yapma)
   useEffect(() => {
+    if (ordered) return;
     if (cart && (cart.items?.length === 0 || cart.hasPriceChanges)) {
       router.replace("/cart");
     }
-  }, [cart, router]);
+  }, [cart, router, ordered]);
 
   const loadAddresses = useCallback(async () => {
     try {
@@ -81,9 +84,10 @@ export default function CheckoutPage() {
         method: "POST",
         body: { addressId: selectedId },
       });
-      await reload(); // sepet artık boş — header rozeti güncellensin
-      // Sipariş detayına "yeni sipariş" kutlamasıyla git
-      router.push(order?.id ? `/account/orders/${order.id}?new=1` : "/account/orders");
+      setOrdered(true); // cart guard'ı kapat
+      const dest = order?.id ? `/account/orders/${order.id}?new=1` : "/account/orders";
+      router.push(dest);
+      reload(); // intentionally not awaited
     } catch (err) {
       if (err.status === 409) {
         // Fiyat/stok/sepet senaryoları: sepeti tazele, kullanıcıyı bilgilendir, sepete dön
