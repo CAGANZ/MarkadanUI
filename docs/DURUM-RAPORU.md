@@ -206,7 +206,26 @@ Bugünkü testler API seviyesindeydi; görsel kontrol yapılmadı. Chrome DevToo
 
 ---
 
-### GÖREV 6 — Deploy hazırlığı (MİMARLA BİRLİKTE — tek başına başlama)
+### GÖREV 6 — WhatsApp sipariş butonu (yeni — öncelikli)
+**Süre tahmini:** 1-2 saat | **Zorluk:** Düşük | **Backend efor: Sıfır**
+
+Ürün detay sayfasına "WhatsApp'tan Sipariş Ver" butonu ekle.
+
+**Nasıl çalışır:**
+- `boutique.js`'e `whatsappPhone: "905xxxxxxxxx"` alanı ekle (ülke koduyla, başında + yok)
+- Ürün detay sayfasında bu alan doluysa buton görünür, boşsa görünmez
+- Tıklanınca yeni sekmede şu URL açılır:
+  ```
+  https://wa.me/{phone}?text=Merhaba%2C%20{ürün adı}%20ürününü%20sipariş%20etmek%20istiyorum.%0A{ürün URL}
+  ```
+- Buton stili: `variant="accent"` veya yeşil özel renk (WhatsApp rengi)
+
+**Neden önemli:** Form doldurmak istemeyen, kapıda ödeme tercih eden müşteriler için birincil
+sipariş kanalı. Türkiye'de esnaf segmentinde checkout dönüşümünden daha yüksek tamamlanma oranı beklenir.
+
+---
+
+### GÖREV 7 — Deploy hazırlığı (MİMARLA BİRLİKTE — tek başına başlama)
 Hosting seçimi, production env, butik şablonlaması (`boutique.js` + `theme.css` + logo)
 mimari karar gerektirir. Görev 1-5 bittiğinde mimarla planlanacak.
 
