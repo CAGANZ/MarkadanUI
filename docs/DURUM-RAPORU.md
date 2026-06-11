@@ -67,6 +67,14 @@ npm run build    # commit öncesi zorunlu — 29 sayfa hepsi geçmeli
 **E2E doğrulanan akışlar:** admin CRUD → public katalog → müşteri kayıt → sepet →
 fiyat değişikliği onay döngüsü → checkout → sipariş → iptal (stok iadesiyle). Hepsi canlı backend'le test edildi.
 
+**Bilinen bug — GÖREV 1'den önce düzelt:** `/admin/orders` (ve tüm `/admin/*`) giriş yapılmadan
+açılınca 401/500 hatası gösteriyor, `/login?next=/admin/orders`'a yönlendirmeli.
+- **Neden:** `AdminGuard` client-side çalışıyor; sayfa yüklenip API çağrısı ateşlendikten sonra
+  devreye giriyor. Ayrıca `next` parametresi hardcoded `/admin` — gerçek path olmalı.
+- **Düzeltme:** `src/middleware.js` ekle (`/admin/*` için token cookie kontrolü → redirect);
+  `AdminGuard`'da `usePathname()` ile doğru `next` parametresi. Backend'e dokunma gerekmez.
+- **Dosyalar:** `src/middleware.js` (yeni), `src/components/admin/AdminGuard.jsx`
+
 **Bilinen backend davranışı:** 409 sonrası `GET /me/cart` snapshot'ı TAZELEMİYOR
 (handoff dokümanının aksine). UI çözümü: `useCart.acceptPriceChanges` — fiyatı değişen
 satırı silip aynı miktarla yeniden ekler. Backend'e `accept-prices` ucu önerildi; eklenirse
