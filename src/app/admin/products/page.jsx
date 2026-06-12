@@ -1,6 +1,6 @@
 "use client";
 // src/app/admin/products/page.jsx
-import { useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { api } from "@/lib/client/api";
 import { useToast } from "@/components/ui/Toast";
@@ -13,6 +13,11 @@ import Pager from "@/components/catalog/Pager";
 
 export default function AdminProductsPage() {
   const toast = useToast();
+  const fileRef = useRef(null);
+  const [csvModal, setCsvModal] = useState(false);
+  const [csvFile, setCsvFile] = useState(null);
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [csvResult, setCsvResult] = useState(null);
 
   const [products, setProducts] = useState(null);
   const [total, setTotal] = useState(0);
@@ -62,6 +67,29 @@ export default function AdminProductsPage() {
     }
   };
 
+  const uploadCsv = async () => {
+    if (!csvFile) return;
+    setCsvUploading(true);
+    setCsvResult(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", csvFile);
+      const res = await fetch("/api/admin/products/bulk", { method: "POST", body: fd });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.detail || "Yükleme başarısız");
+        return;
+      }
+      setCsvResult(data);
+      toast.success(`${data.succeeded} ürün eklendi`);
+      await load();
+    } catch {
+      toast.error("Yükleme sırasında hata oluştu");
+    } finally {
+      setCsvUploading(false);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const inputCls =
@@ -74,9 +102,14 @@ export default function AdminProductsPage() {
           <h1 className="text-2xl font-bold tracking-tight text-ink">Ürün Yönetimi</h1>
           <p className="mt-1 text-sm text-ink-soft">Ürün ekleme, düzenleme ve silme</p>
         </div>
-        <Button asChild variant="primary" size="sm">
-          <Link href="/admin/products/create">+ Yeni Ürün</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={() => { setCsvFile(null); setCsvResult(null); setCsvModal(true); }}>
+            CSV Yükle
+          </Button>
+          <Button asChild variant="primary" size="sm">
+            <Link href="/admin/products/create">+ Yeni Ürün</Link>
+          </Button>
+        </div>
       </div>
 
       {/* Arama + sıralama */}
@@ -181,6 +214,63 @@ export default function AdminProductsPage() {
           </>
         )}
       </div>
+
+      {/* CSV yükleme modalı */}
+      <Modal
+        open={csvModal}
+        onClose={() => setCsvModal(false)}
+        title="Toplu Ürün Yükle (CSV)"
+        footer={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setCsvModal(false)}>Kapat</Button>
+            <Button variant="primary" size="sm" loading={csvUploading} disabled={!csvFile} onClick={uploadCsv}>
+              Yükle
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-ink-soft">
+            CSV başlık satırı:{" "}
+            <code className="rounded bg-surface px-1 py-0.5 text-xs font-mono text-ink">
+              Title,Description,Price,Stock,BrandName,CategoryName,ImageUrl
+            </code>
+          </p>
+          <div
+            className="flex flex-col items-center justify-center gap-3 rounded-base border-2 border-dashed border-line p-8 text-center cursor-pointer hover:border-primary transition-colors"
+            onClick={() => fileRef.current?.click()}
+          >
+            <span className="text-2xl">📄</span>
+            <p className="text-sm font-medium text-ink">
+              {csvFile ? csvFile.name : "CSV dosyası seç"}
+            </p>
+            <p className="text-xs text-ink-soft">Maksimum 10 MB</p>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => { setCsvFile(e.target.files?.[0] ?? null); setCsvResult(null); }}
+            />
+          </div>
+          {csvResult && (
+            <div className="rounded-base border border-line bg-surface p-4 space-y-2">
+              <p className="text-sm font-semibold text-ink">
+                {csvResult.succeeded} ürün eklendi{csvResult.failed > 0 && `, ${csvResult.failed} hata`}
+              </p>
+              {csvResult.errors?.length > 0 && (
+                <ul className="max-h-40 overflow-y-auto space-y-1">
+                  {csvResult.errors.map((e, i) => (
+                    <li key={i} className="text-xs text-danger">
+                      Satır {e.row}: {e.reason}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {/* Silme onay modalı */}
       <Modal
