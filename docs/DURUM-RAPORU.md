@@ -123,6 +123,112 @@ Geliştirme aşamasında deploy yapılmayacak. Local ortam (Next.js dev + .NET D
 
 ---
 
+### GÖREV I — iyzico Ödeme Entegrasyonu (Frontend)
+**Süre tahmini:** 4-6 saat | **Zorluk:** Orta | **Backend:** ✅ hazır
+
+**Yeni akış — checkout sayfası değişiyor:**
+
+Eski: `POST /me/checkout` → sipariş oluşur
+Yeni:
+1. `POST /me/checkout/initiate` → iyzico token alınır
+2. Frontend iyzico popup'ını token ile açar
+3. Kullanıcı ödeme yapar, popup kapanır
+4. `POST /me/checkout/confirm` → ödeme doğrulanır, sipariş oluşur
+
+**Backend uçları:**
+
+`POST /me/checkout/initiate` — Auth gerekli
+```json
+// Request
+{ "addressId": 1 }
+// Response
+{
+  "conversationId": "cart-42",
+  "token": "iyzico-token-buraya",
+  "checkoutFormContent": "<script>...</script>"
+}
+```
+
+`POST /me/checkout/confirm` — Auth gerekli
+```json
+// Request
+{ "token": "iyzico-token-buraya" }
+// Response — OrderDTO (mevcut sipariş detay yapısıyla aynı)
+{ "id": 42, "orderNumber": "MRK-XXXXXXXX", "status": "Ordered", ... }
+```
+
+**Frontend değişiklikleri:**
+
+1. `src/app/checkout/page.jsx` — ödeme butonunu değiştir:
+   - `POST /me/checkout/initiate` çağır, `{ token, checkoutFormContent }` al
+   - `checkoutFormContent` (HTML/JS snippet) sayfaya inject et — `dangerouslySetInnerHTML` kullan, div'e ekle
+   - iyzico popup açılır, kullanıcı ödeme yapar
+   - Popup kapandıktan sonra `POST /me/checkout/confirm` çağır, `{ token }` ile
+   - Cevap gelen OrderDTO'nun `id`'siyle `/account/orders/{id}?new=1`'e yönlendir
+
+2. `src/app/api/me/checkout/initiate/route.js` — yeni BFF proxy (POST)
+3. `src/app/api/me/checkout/confirm/route.js` — yeni BFF proxy (POST)
+
+**iyzico popup davranışı:**
+- `checkoutFormContent` genellikle bir `<script>` tag'i içerir
+- Ekrana inject edilince iyzico kendi popup'ını otomatik açar
+- Ödeme tamamlanınca iyzico sayfada bir callback çağırır veya yönlendirme yapar
+- Sandbox'ta test etmek için iyzico sandbox hesabı gerekli (iyzico.com'dan açılır)
+
+**Hata senaryoları:**
+- iyzico popup kapatılırsa / ödeme başarısız olursa: `confirm` çağrısını yapma, kullanıcıya "ödeme tamamlanamadı" göster
+- `confirm` 400/409 dönerse: "Ödeme işlemi başarısız, tekrar deneyin" toast göster
+
+**Kabul kriteri:** iyzico sandbox'ta test kartıyla ödeme yapılır, `/account/orders/{id}?new=1` sayfası açılır.
+
+---
+
+### GÖREV J — Sipariş İptal Akışı Güncelleme (Frontend)
+**Süre tahmini:** 1-2 saat | **Zorluk:** Düşük | **Backend:** ✅ hazır
+
+Backend yeni iptal kuralları uyguluyor. Frontend iptal butonu + modal buna göre güncellenmeli.
+
+**Yeni durumlar ve Türkçe karşılıkları:**
+
+| status (API) | Türkçe | İptal edilebilir mi (müşteri) |
+|---|---|---|
+| `PaymentPending` | Ödeme Bekleniyor | Evet |
+| `Ordered` | Onaylandı | Evet (iade tetiklenir) |
+| `Preparing` | Hazırlanıyor | Evet (iade tetiklenir) |
+| `Shipped` | Kargoya Verildi | Hayır |
+| `Delivered` | Teslim Edildi | Hayır |
+| `Cancelled` | İptal Edildi | — |
+
+**`src/lib/order-status.js` güncellemesi:**
+```js
+export const ORDER_STATUSES = {
+  PaymentPending: { label: "Ödeme Bekleniyor", color: "warning" },
+  Ordered:        { label: "Onaylandı",         color: "primary" },
+  Preparing:      { label: "Hazırlanıyor",       color: "primary" },
+  Shipped:        { label: "Kargoya Verildi",    color: "accent"  },
+  Delivered:      { label: "Teslim Edildi",      color: "success" },
+  Cancelled:      { label: "İptal Edildi",       color: "danger"  },
+};
+
+export const canCustomerCancel = (status) =>
+  ["PaymentPending", "Ordered", "Preparing"].includes(status);
+```
+
+**`src/app/account/orders/[id]/page.jsx` değişiklikleri:**
+- `canCustomerCancel(status)` false ise iptal butonunu gizle
+- `Shipped` durumunda: "Kargo çıktıktan sonra iptal edilemez." notu göster
+- İptal onay modal mesajını güncelle:
+  - `Ordered/Preparing` için: "Siparişiniz iptal edilecek ve ödemeniz iade edilecektir."
+  - `PaymentPending` için: "Siparişiniz iptal edilecektir."
+
+**Admin paneli (`src/app/admin/orders/[id]/page.jsx`):**
+- Yeni durumları dropdown'a ekle: `Preparing`, `Shipped`, `Delivered`
+- Durum geçiş akışı: `Ordered → Preparing → Shipped → Delivered`
+
+**Kabul kriteri:** `Shipped` durumundaki siparişte iptal butonu görünmez; `Ordered` durumundaki siparişte modal "iade edilecektir" mesajı gösterir.
+
+---
+
 ### Sonraki görevler — backend ekibinden gelecek
 
 ---
