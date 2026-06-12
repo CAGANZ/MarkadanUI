@@ -116,8 +116,14 @@ Headless Chromium ile E2E turu yapıldı. Bulunan ve düzeltilen bug:
 
 ---
 
-### GÖREV H — Deploy hazırlığı (MİMARLA BİRLİKTE)
-Hosting, production env, butik şablonlaması mimari karar. Görev G bitti — planlanmaya hazır.
+### GÖREV H — Deploy hazırlığı ⏸ ERTELENDİ
+
+Geliştirme aşamasında deploy yapılmayacak. Local ortam (Next.js dev + .NET Docker Compose) yeterli.
+İhtiyaç duyulunca tercih edilen yol: **VPS + Docker Compose** (Hetzner/DigitalOcean + Coolify).
+
+---
+
+### Sonraki görevler — backend ekibinden gelecek
 
 ---
 
