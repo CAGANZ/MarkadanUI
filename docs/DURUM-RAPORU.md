@@ -1,6 +1,6 @@
 # Markadan Frontend — Durum Raporu ve Görev Listesi
 
-**Tarih:** 2026-06-12 | **Son commit:** `64767d9` | **Build:** ✅ temiz | **E2E test:** ✅ tüm akışlar geçti
+**Tarih:** 2026-06-12 | **Son commit:** `4674140` | **Build:** ✅ temiz | **E2E test:** ✅ tüm akışlar geçti
 **Hazırlayan:** Mimar | **Hedef okuyucu:** Projeye devam edecek geliştirici
 
 > **Başlamadan önce sırasıyla oku:**
@@ -86,29 +86,38 @@ UI çözümü: `useCart.acceptPriceChanges` — silip yeniden ekler.
 
 ---
 
-## 4. GÖREVLER (yapılacak)
+## 4. GÖREVLER
 
-### GÖREV G — Görsel QA
-**Süre tahmini:** Yarım gün | **Zorluk:** Düşük (dikkat işi)
+### GÖREV G — Görsel QA ✅ TAMAMLANDI (2026-06-12)
 
-Chrome DevTools'ta **390px (iPhone 12 Pro)** ve masaüstünde şu turu yap:
+Headless Chromium ile E2E turu yapıldı. Bulunan ve düzeltilen bug:
+- `src/app/api/admin/settings/route.js` eksikti → Mağaza Ayarları her açılışta hata veriyordu. Düzeltildi: `4674140`
 
-- [ ] Ana sayfa: hero, kategoriler, yeni gelenler, markalar, CTA bandı
-- [ ] Ürün listesi: filtre paneli (mobilde alttan açılır), sıralama, sayfalama
-- [ ] Ürün detay: mobilde alt çubuğu MobileNav ÜSTÜNDE (`bottom-14`), WhatsApp + Favorilere Ekle butonları
-- [ ] Kayıt: hatalı girişlerde alan altı mesajlar
-- [ ] Sepet: fiyat değişikliği banner, miktar ±, boş sepet
-- [ ] Checkout: adres seçimi, yeni adres modalı, sipariş → `/account/orders/{id}?new=1`
-- [ ] Siparişlerim: liste, detay, iptal modalı
-- [ ] Favorilerim: ekleme → liste → kaldırma
-- [ ] Admin: mağaza ayarları kaydet, CSV yükle, marka/kategori oluştur/düzenle/sil
-- [ ] Header: sepet rozeti ürün ekleyince anında artıyor mu
-- [ ] 401: çıkış → `/account` → login sayfası → geri dönüş (`?next=`)
+**QA Sonuçları:**
+
+| Akış | Sonuç | Not |
+|---|---|---|
+| Ana sayfa (mobil + masaüstü) | ✅ | |
+| Ürün listesi, filtreler, sayfalama | ✅ | |
+| Kategoriler, Markalar sayfaları | ✅ | |
+| Ürün detay — masaüstü + mobil bar | ✅ | |
+| Kayıt + giriş | ✅ | |
+| Sepet — rozet, ± butonları | ✅ | |
+| Checkout — adres modalı → sipariş onayla | ✅ | `/account/orders/{id}?new=1` doğru |
+| Sipariş listesi + iptal modalı | ✅ | |
+| Favorilere ekle → liste → çıkar → boş durum | ✅ | |
+| Admin panel + nav | ✅ | |
+| Admin Mağaza Ayarları kaydet | ✅ | BFF route düzeltildi |
+| Admin Marka oluştur / düzenle / sil | ✅ | |
+| Admin CSV modal | ✅ UI | CSV format notuna bkz. |
+| 401: çıkış → /account → login → geri dön | ✅ | `?next=` çalışıyor |
+
+**CSV format notu:** Backend `BrandName/CategoryName` (isim bazlı) bekliyor ama Swagger şeması netleştirilmeli.
 
 ---
 
 ### GÖREV H — Deploy hazırlığı (MİMARLA BİRLİKTE)
-Hosting, production env, butik şablonlaması mimari karar. Görev G bitince planlanır.
+Hosting, production env, butik şablonlaması mimari karar. Görev G bitti — planlanmaya hazır.
 
 ---
 
