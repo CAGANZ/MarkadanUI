@@ -16,6 +16,10 @@ export const BOUTIQUE = {
   // Logo (boşsa butik adı metin olarak gösterilir)
   logoUrl: "",
 
+  // WhatsApp sipariş hattı (ülke koduyla, başında + yok: "905xxxxxxxxx")
+  // Boşsa WhatsApp butonu hiç görünmez.
+  whatsappPhone: "",
+
   // İletişim — footer'da görünür
   contact: {
     phone: "",
