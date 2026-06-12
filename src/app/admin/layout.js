@@ -12,6 +12,7 @@ const NAV = [
   { href: "/admin/products", label: "Ürünler" },
   { href: "/admin/categories", label: "Kategoriler" },
   { href: "/admin/brands", label: "Markalar" },
+  { href: "/admin/settings", label: "Ayarlar" },
 ];
 
 export default function AdminLayout({ children }) {
