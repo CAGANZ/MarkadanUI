@@ -8,6 +8,7 @@ import { formatPrice } from "@/lib/format";
 import { MEDIA } from "@/lib/media";
 import AddToCartButton from "@/components/cart/AddToCartButton";
 import ProductCard from "@/components/catalog/ProductCard";
+import WishlistButton from "@/components/catalog/WishlistButton";
 import { BOUTIQUE } from "@/config/boutique";
 
 export async function generateMetadata({ params }) {
@@ -102,6 +103,7 @@ export default async function ProductDetailPage({ params }) {
           {/* Masaüstü aksiyon */}
           <div className="mt-2 hidden sm:flex sm:flex-col sm:gap-3 sm:max-w-sm">
             <AddToCartButton productId={product.id} />
+            <WishlistButton productId={product.id} />
             {whatsappUrl && (
               <a
                 href={whatsappUrl}

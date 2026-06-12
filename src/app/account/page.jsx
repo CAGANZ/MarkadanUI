@@ -57,6 +57,7 @@ export default function AccountPage() {
       <div className="mt-6 flex flex-col gap-3">
         <Row href="/account/orders" title="Siparişlerim" desc="Geçmiş siparişlerinizi görüntüleyin ve takip edin" />
         <Row href="/account/addresses" title="Adreslerim" desc="Teslimat adreslerinizi yönetin" />
+        <Row href="/account/wishlist" title="Favorilerim" desc="Beğendiğiniz ürünleri kaydedin" />
         <Row href="/cart" title="Sepetim" desc="Sepetinizdeki ürünleri görüntüleyin" />
         {user.isAdmin && (
           <Row href="/admin" title="Yönetim Paneli" desc="Ürün, kategori ve sipariş yönetimi" />
