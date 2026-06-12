@@ -11,6 +11,9 @@
 ## Hızlı başlangıç
 
 ```bash
+# Oturum başında — önce güncelle
+git pull
+
 # Backend (MarkadanAPI dizininde)
 docker compose up -d
 
