@@ -229,15 +229,87 @@ export const canCustomerCancel = (status) =>
 
 ---
 
+### GÖREV K — Dinamik Mağaza Verisi
+**Süre tahmini:** 2-3 saat | **Zorluk:** Düşük | **Backend:** ✅ hazır
+
+`boutique.js` statik yapılandırması yerine `GET /store-settings` API'sinden oku. Admin panelindeki değişiklikler anında yansısın.
+
+**Backend ucu:** `GET /store-settings` — Auth gereksiz, public
+
+```json
+{
+  "storeName": "Markadan",
+  "logoUrl": "...",
+  "accentColor": "#...",
+  "currency": "TRY",
+  "whatsappPhone": "+905XXXXXXXXX",
+  "instagramUrl": "...",
+  "twitterUrl": "..."
+}
+```
+
+**Frontend değişiklikleri:**
+
+1. `src/config/boutique.js` → SSR'da `GET /store-settings` çeken bir `getStoreSettings()` fonksiyonu yaz
+2. `src/app/layout.js` (root layout) → `getStoreSettings()` çağır, `<Header>` ve `<Footer>`'a prop olarak geç
+3. `src/app/products/[id]/page.jsx` → WhatsApp butonuna `whatsappPhone` prop'unu geç (`boutique.whatsappPhone` yerine)
+4. `src/app/api/store-settings/route.js` → BFF proxy (GET, public, auth yok)
+
+**Dikkat:**
+- Root layout her request'te re-fetch yapar — Next.js `fetch` cache veya `unstable_cache` kullan
+- `boutique.js` dosyasını silme, fallback olarak kalsın
+
+**Kabul kriteri:** Admin panelinden mağaza adı veya WhatsApp numarası değiştirilince sayfa yenilendiğinde yeni değer görünür.
+
+---
+
+### GÖREV L — Middleware Auth Guard
+**Süre tahmini:** 1-2 saat | **Zorluk:** Düşük | **Backend:** ✅ hazır (JWT)
+
+Şu an `/account/*` ve `/admin/*` rotaları client-side redirect kullanıyor (`useAuth()` hook). `src/middleware.js` ile server-side token kontrolü ekle — bot'lar ve doğrudan URL erişimi de yönlendirilsin.
+
+**`src/middleware.js` (yeni dosya):**
+```js
+import { NextResponse } from "next/server";
+
+const PROTECTED = ["/account", "/admin"];
+const ADMIN_ONLY = ["/admin"];
+
+export function middleware(request) {
+  const token = request.cookies.get("token")?.value;
+  const { pathname } = request.nextUrl;
+
+  const isProtected = PROTECTED.some((p) => pathname.startsWith(p));
+  if (isProtected && !token) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("next", pathname);
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ["/account/:path*", "/admin/:path*"],
+};
+```
+
+**Dikkat:**
+- Token cookie adını `useAuth()` hook'uyla uyumlu tut
+- Admin rolü kontrolü middleware'de yapılmaz — sadece token varlığı kontrol edilir (rol kontrolü `AdminGuard` client bileşeninde kalır)
+
+**Kabul kriteri:** Token olmadan `/account/orders` açmaya çalışınca `/login?next=/account/orders`'a yönlendirir.
+
+---
+
 ### Sonraki görevler — backend ekibinden gelecek
 
 ---
 
 ## 5. İleride değerlendirilecek
 
-- **Dinamik mağaza verisi:** `GET /store-settings` → Header/Footer'a bağla (şu an `boutique.js` statik).
-- **WhatsApp ↔ Admin Settings senkronu:** `boutique.js` yerine `GET /store-settings` ile `whatsappPhone` oku.
-- **Middleware auth guard:** `src/middleware.js` ile server-side token kontrolü (şu an client-side CSR).
+_(Görev K ve L'ye taşındı)_
 
 ---
 
