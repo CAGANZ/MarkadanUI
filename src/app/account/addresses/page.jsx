@@ -108,7 +108,7 @@ export default function AddressesPage() {
               <div className="min-w-0">
                 <div className="font-semibold text-ink">{a.addressName}</div>
                 <div className="mt-0.5 text-sm text-ink-soft">
-                  {a.street}, {a.state} / {a.city} {a.postalCode}, {a.country}
+                  {a.street}, {a.state}, {a.city} {a.postalCode}
                 </div>
               </div>
               <div className="flex shrink-0 gap-1">

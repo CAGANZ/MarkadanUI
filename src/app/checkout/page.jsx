@@ -1,11 +1,14 @@
 "use client";
 // src/app/checkout/page.jsx
-// Checkout — adres seç → onayla → sipariş.
+// Checkout — adres seç → ödemeyi başlat (iyzico) → doğrula → sipariş.
+// Akış:
+//   1. phase=address : adres seç, "Ödemeye Geç" → POST /me/checkout/initiate
+//   2. phase=payment : iyzico form inject edilir, "Ödemeyi Tamamladım" → POST /me/checkout/confirm
 // 409 senaryoları (backend sözleşmesi):
 //  - fiyat değişti → sepet GET ile tazelenir (snapshot güncellenir), /cart'a dön
 //  - stok yok     → detail gösterilir, /cart'a dön
 //  - sepet boş    → /cart'a dön
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,20 +25,44 @@ export default function CheckoutPage() {
   const { cart, reload } = useCart();
   const router = useRouter();
   const toast = useToast();
+  const iyzicoRef = useRef(null);
 
   const [addresses, setAddresses] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [ordered, setOrdered] = useState(false); // sipariş verildi, cart guard'ı durdur
+  const [ordered, setOrdered] = useState(false);
+
+  // iyzico akışı
+  const [phase, setPhase] = useState("address"); // 'address' | 'payment'
+  const [paymentToken, setPaymentToken] = useState(null);
+  const [paymentFormContent, setPaymentFormContent] = useState(null);
+
+  // checkoutFormContent gelince iyzico script'ini DOM'a inject et
+  useEffect(() => {
+    if (!paymentFormContent || !iyzicoRef.current) return;
+    const container = iyzicoRef.current;
+    container.innerHTML = "";
+    const temp = document.createElement("div");
+    temp.innerHTML = paymentFormContent;
+    Array.from(temp.childNodes).forEach((node) => {
+      if (node.nodeName === "SCRIPT") {
+        const script = document.createElement("script");
+        if (node.src) script.src = node.src;
+        else script.textContent = node.textContent;
+        script.type = "text/javascript";
+        container.appendChild(script);
+      } else {
+        container.appendChild(node.cloneNode(true));
+      }
+    });
+  }, [paymentFormContent]);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login?next=/checkout");
   }, [authLoading, user, router]);
 
-  // Sepet boş ya da fiyat onayı bekliyorsa checkout'ta durulmaz
-  // (sipariş verildikten sonra cart boşalır — o durumda yönlendirme yapma)
   useEffect(() => {
     if (ordered) return;
     if (cart && (cart.items?.length === 0 || cart.hasPriceChanges)) {
@@ -72,7 +99,7 @@ export default function CheckoutPage() {
     }
   };
 
-  const placeOrder = async () => {
+  const initiatePayment = async () => {
     if (!selectedId) {
       setError("Lütfen bir teslimat adresi seçin.");
       return;
@@ -80,23 +107,45 @@ export default function CheckoutPage() {
     setError("");
     setBusy(true);
     try {
-      const order = await api("/me/checkout", {
+      const result = await api("/me/checkout/initiate", {
         method: "POST",
         body: { addressId: selectedId },
       });
-      setOrdered(true); // cart guard'ı kapat
-      const dest = order?.id ? `/account/orders/${order.id}?new=1` : "/account/orders";
-      router.push(dest);
-      reload(); // intentionally not awaited
+      setPaymentToken(result.token);
+      setPaymentFormContent(result.checkoutFormContent);
+      setPhase("payment");
     } catch (err) {
       if (err.status === 409) {
-        // Fiyat/stok/sepet senaryoları: sepeti tazele, kullanıcıyı bilgilendir, sepete dön
         await reload();
         toast.error(err.detail || "Sepetinizde güncelleme var, lütfen kontrol edin.");
         router.push("/cart");
       } else if (err.status === 404) {
         setError("Seçilen adres bulunamadı. Lütfen başka bir adres seçin.");
         await loadAddresses();
+      } else {
+        setError(err.detail || "Ödeme başlatılamadı.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmPayment = async () => {
+    if (!paymentToken) return;
+    setError("");
+    setBusy(true);
+    try {
+      const order = await api("/me/checkout/confirm", {
+        method: "POST",
+        body: { token: paymentToken },
+      });
+      setOrdered(true);
+      const dest = order?.id ? `/account/orders/${order.id}?new=1` : "/account/orders";
+      router.push(dest);
+      reload();
+    } catch (err) {
+      if (err.status === 400 || err.status === 409) {
+        setError(err.detail || "Ödeme işlemi başarısız, tekrar deneyin.");
       } else {
         setError(err.detail || "Sipariş oluşturulamadı.");
       }
@@ -116,7 +165,59 @@ export default function CheckoutPage() {
   }
 
   const items = cart.items ?? [];
+  const selectedAddress = addresses.find((a) => a.id === selectedId);
 
+  // iyzico ödeme ekranı
+  if (phase === "payment") {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-8">
+        <h1 className="mb-6 text-2xl font-bold tracking-tight text-ink">Ödemeyi Tamamla</h1>
+
+        <div className="flex flex-col gap-6">
+          {selectedAddress && (
+            <div className="rounded-base border border-line bg-surface-card p-4 text-sm text-ink-soft">
+              <span className="font-semibold text-ink">{selectedAddress.addressName}</span>
+              {" — "}
+              {selectedAddress.street}, {selectedAddress.state}, {selectedAddress.city}{" "}
+              {selectedAddress.postalCode}
+            </div>
+          )}
+
+          {/* iyzico popup buraya inject edilir */}
+          <div ref={iyzicoRef} />
+
+          <p className="text-sm text-ink-soft">
+            iyzico ödeme ekranı yüklendi. Ödemeyi tamamladıktan sonra aşağıdaki butona tıklayın.
+          </p>
+
+          {error && (
+            <p role="alert" className="rounded-base bg-danger-soft px-3 py-2 text-sm font-medium text-danger">
+              {error}
+            </p>
+          )}
+
+          <div className="flex gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setPhase("address");
+                setPaymentToken(null);
+                setPaymentFormContent(null);
+                setError("");
+              }}
+            >
+              Geri
+            </Button>
+            <Button size="lg" loading={busy} onClick={confirmPayment} className="flex-1">
+              Ödemeyi Tamamladım — {formatPrice(cart.total)}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // adres seçim ekranı (phase === 'address')
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="mb-6 text-2xl font-bold tracking-tight text-ink">Siparişi Tamamla</h1>
@@ -161,7 +262,7 @@ export default function CheckoutPage() {
                   <span className="min-w-0">
                     <span className="block font-semibold text-ink">{a.addressName}</span>
                     <span className="mt-0.5 block text-sm text-ink-soft">
-                      {a.street}, {a.state} / {a.city} {a.postalCode}
+                      {a.street}, {a.state}, {a.city} {a.postalCode}
                     </span>
                   </span>
                 </label>
@@ -201,9 +302,9 @@ export default function CheckoutPage() {
           size="lg"
           loading={busy}
           disabled={addresses.length === 0}
-          onClick={placeOrder}
+          onClick={initiatePayment}
         >
-          Siparişi Onayla — {formatPrice(cart.total)}
+          Ödemeye Geç — {formatPrice(cart.total)}
         </Button>
       </div>
 

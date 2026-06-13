@@ -1,17 +1,25 @@
 # STATUS — Markadan Frontend Şu An Neredeyiz
 
-**Son güncelleme:** 2026-06-12  
+**Son güncelleme:** 2026-06-13  
 **Güncelleyen:** Claude
 
 ---
 
 ## Şu an ne durumda
 
-Frontend geliştirmesi tamamlandı — tüm fazlar (1-8) bitti, QA geçti, build temiz. Aktif geliştirme yok. Backend ekibinden yeni görevler bekleniyor.
+GÖREV I (iyzico frontend) frontend tarafı tamamlandı. Backend'de iyzico sandbox credential sorunu var — backend ekibi çözünce uçtan uca test edilebilir.
 
 ---
 
 ## Son oturumda ne yapıldı
+
+**2026-06-13**
+- GÖREV I (iyzico ödeme entegrasyonu) frontend tamamlandı:
+  - `src/app/api/me/checkout/initiate/route.js` — yeni BFF proxy
+  - `src/app/api/me/checkout/confirm/route.js` — yeni BFF proxy
+  - `src/app/checkout/page.jsx` — 2 adımlı iyzico akışı (initiate → popup → confirm)
+  - Adres format düzeltmesi: ` / ` → `, ` (checkout + adreslerim sayfası)
+- **Backend blocker:** `POST /me/checkout/initiate` → iyzico `"Geçersiz imza"` hatası (409). Sandbox API Key/Secret Key doğrulanmalı.
 
 **2026-06-12**
 - GÖREV G (Görsel QA) tamamlandı — tüm akışlar headless Chromium ile test edildi
