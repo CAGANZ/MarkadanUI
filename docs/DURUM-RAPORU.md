@@ -1,6 +1,6 @@
 # Markadan Frontend — Durum Raporu ve Görev Listesi
 
-**Tarih:** 2026-06-12 | **Son commit:** `4674140` | **Build:** ✅ temiz | **E2E test:** ✅ tüm akışlar geçti
+**Tarih:** 2026-06-20 | **Son backend commit:** `16f59fb` | **Build:** ✅ temiz | **E2E test:** ✅ tüm akışlar geçti
 **Hazırlayan:** Mimar | **Hedef okuyucu:** Projeye devam edecek geliştirici
 
 > **Başlamadan önce sırasıyla oku:**
@@ -70,6 +70,11 @@ Backend admin şifresi `~/MarkadanAPI/.env`'de. Swagger: `http://localhost:8080/
 
 **Bilinen backend davranışı:** 409 sonrası `GET /me/cart` snapshot'ı TAZELEMİYOR (handoff notu yanlış).
 UI çözümü: `useCart.acceptPriceChanges` — silip yeniden ekler.
+
+**2026-06-20 backend değişiklikleri (yeni görevler M–O için bağlam):**
+- **G9 Kupon sistemi:** `CartDTO`'ya `couponCode`, `discountAmount`, `finalTotal` eklendi. Yeni sepet uçları: `POST /me/cart/coupon`, `DELETE /me/cart/coupon`. Admin CRUD: `/admin/coupons`.
+- **G5 Kargo takip:** `OrderDTO` ve `AdminOrderDTO`'ya `trackingNumber`, `trackingUrl` eklendi. Admin durum güncelleme body'si genişletildi.
+- **G7 CSV export:** `GET /admin/orders/export` ucu eklendi — tarayıcıdan doğrudan indirme çalışır.
 
 ---
 
@@ -300,6 +305,217 @@ export const config = {
 - Admin rolü kontrolü middleware'de yapılmaz — sadece token varlığı kontrol edilir (rol kontrolü `AdminGuard` client bileşeninde kalır)
 
 **Kabul kriteri:** Token olmadan `/account/orders` açmaya çalışınca `/login?next=/account/orders`'a yönlendirir.
+
+---
+
+### GÖREV M — Kupon / İndirim Kodu UI
+**Süre tahmini:** 3-4 saat | **Zorluk:** Orta | **Backend:** ✅ hazır
+
+Müşteri sepet sayfasına kupon kodu girişi; admin paneline kupon yönetimi.
+
+---
+
+#### M1 — Sepet: kupon girişi
+
+**Backend uçları:**
+```
+POST /me/cart/coupon       body: { "code": "HOSGELDIN10" }  → CartDTO
+DELETE /me/cart/coupon                                       → CartDTO
+```
+
+**CartDTO (güncel):**
+```json
+{
+  "id": 1,
+  "status": "Active",
+  "items": [...],
+  "total": 1649.60,
+  "hasPriceChanges": false,
+  "couponCode": "HOSGELDIN10",
+  "discountAmount": 164.96,
+  "finalTotal": 1484.64
+}
+```
+`finalTotal` = `total - discountAmount`. Kupon yoksa `couponCode: null`, `discountAmount: 0`, `finalTotal == total`.
+
+**Frontend değişiklikleri (`src/app/cart/` veya `hooks/useCart.jsx`):**
+
+1. `useCart` hook'una iki action ekle:
+   - `applyCoupon(code)` → `POST /me/cart/coupon`
+   - `removeCoupon()` → `DELETE /me/cart/coupon`
+   - Her ikisi de `setCart(data)` ile state'i günceller.
+
+2. Sepet sayfasına kupon girişi ekle (ürünler listesinin altına, toplam üstüne):
+   ```
+   ┌─────────────────────────────────────┐
+   │ 🏷  İndirim Kodu                     │
+   │ [  KOD GİR...  ]  [ UYGULA ]        │
+   │ ✅ HOSGELDIN10 uygulandı   [Kaldır]  │ ← kupon aktifse
+   └─────────────────────────────────────┘
+   ```
+
+3. Toplam kart:
+   ```
+   Ara Toplam          1.649,60 TL
+   İndirim (HOSGELDIN10) -164,96 TL   ← sadece kupon aktifse göster
+   ─────────────────────────────────
+   Toplam              1.484,64 TL
+   ```
+   Gösterilecek tutar: `cart.finalTotal` (kupon yoksa `cart.total` ile aynı).
+
+4. Hata yönetimi: `catch (err) { toast.error(err.detail) }` — geçersiz/süresi dolmuş/limit dolu kupon 400/422 ile `detail` döner.
+
+5. Checkout akışına dokunma — kupon zaten Cart'ta kayıtlı, checkout servisi otomatik uygular.
+
+**BFF route (`src/app/api/me/cart/coupon/route.js`):**
+```js
+import { passThrough } from "@/lib/server/api";
+export const POST = passThrough;
+export const DELETE = passThrough;
+```
+
+---
+
+#### M2 — Admin: Kupon Yönetimi
+
+**Backend uçları (hepsi `AdminOnly`):**
+```
+GET    /admin/coupons        → CouponDTO[]
+POST   /admin/coupons        → CouponDTO
+PUT    /admin/coupons/{id}   → CouponDTO
+DELETE /admin/coupons/{id}   → 204
+```
+
+**CouponDTO:**
+```json
+{
+  "id": 1,
+  "code": "HOSGELDIN10",
+  "description": "İlk alışverişe %10 indirim",
+  "type": "Percentage",
+  "value": 10,
+  "minOrderAmount": 100,
+  "usageLimit": 500,
+  "usageCount": 3,
+  "expiresAt": "2026-12-31T23:59:59",
+  "isActive": true,
+  "createdAt": "2026-06-20T..."
+}
+```
+
+**`type`:** `"Percentage"` veya `"FixedAmount"`.
+
+**Sayfa: `src/app/admin/coupons/page.jsx`**
+- Tablo: Kod | Tür | Değer | Min Tutar | Kullanım | Son Tarih | Aktif | İşlemler
+- "Yeni Kupon" butonu → modal veya `/admin/coupons/create` sayfası
+- Silme: onay modalı
+
+**Form alanları (oluştur/düzenle):**
+```
+Kod*              [HOSGELDIN10]
+Açıklama*         [İlk alışverişe indirim]
+Tür*              ○ Yüzde (%)  ● Sabit (TL)
+Değer*            [10]
+Min Sipariş (TL)  [100]
+Kullanım Limiti   [500]   (boş = limitsiz)
+Son Geçerlilik    [2026-12-31]   (boş = süresiz)
+Aktif             [✓]
+```
+
+**Admin nav'a ekle:** `src/app/admin/layout.js` → `{ href: "/admin/coupons", label: "Kuponlar" }`.
+
+**BFF route'lar:**
+```
+src/app/api/admin/coupons/route.js         → GET, POST
+src/app/api/admin/coupons/[id]/route.js    → PUT, DELETE
+```
+
+**Kabul kriteri:** Admin kupon oluşturur → müşteri sepete uygular → indirimi görür → checkouttan sonra `usageCount` artar.
+
+---
+
+### GÖREV N — Kargo Takip Görünümü
+**Süre tahmini:** 1-2 saat | **Zorluk:** Düşük | **Backend:** ✅ hazır
+
+Müşteri sipariş detay sayfasında kargo takip bilgisi; admin panelinde takip kodu girişi.
+
+**Backend değişikliği:**
+`OrderDTO` ve `AdminOrderDTO`'ya `trackingNumber (string?)` ve `trackingUrl (string?)` eklendi.
+`PUT /admin/orders/{id}/status` body'si genişletildi:
+```json
+{
+  "status": "Shipped",
+  "trackingNumber": "YK123456789TR",
+  "trackingUrl": "https://gonderitakip.yurticikargo.com/track/YK123456789TR"
+}
+```
+Kargo maili backend otomatik gönderir — frontend'de mail tetikleme yok.
+
+---
+
+#### N1 — Müşteri sipariş detayı
+
+**`src/app/account/orders/[id]/page.jsx`** (veya ilgili component):
+
+`order.status === "Shipped"` veya `"Delivered"` ise ve `order.trackingNumber` doluysa:
+```
+┌──────────────────────────────────────┐
+│ 📦 Kargo Takip                        │
+│ Takip No: YK123456789TR               │
+│ [Kargonuzu Takip Edin →]             │  ← trackingUrl varsa link, yoksa sadece no
+└──────────────────────────────────────┘
+```
+Link: `<a href={order.trackingUrl} target="_blank" rel="noopener">`.
+`trackingUrl` yoksa butonsuz, sadece numara göster.
+
+---
+
+#### N2 — Admin sipariş durum güncelleme
+
+**`src/app/admin/orders/[id]/page.jsx`** (mevcut durum güncelleme formu):
+
+Dropdown'da `Shipped` seçilince iki ek alan belir:
+```
+Kargo Takip No    [YK123456789TR]
+Kargo Takip URL   [https://...]   (opsiyonel)
+```
+Bu alanlar yalnızca `Shipped` seçildiğinde görünür, diğer durumlar için gizli.
+Submit body: `{ status: "Shipped", trackingNumber: "...", trackingUrl: "..." }`.
+
+Mevcut siparişte `trackingNumber` doluysa okuma modunda göster:
+```
+Kargo Takip No: YK123456789TR  [Değiştir]
+```
+
+**Kabul kriteri:** Admin `Shipped` + takip kodu → müşteri `/account/orders/{id}`'de takip linkini görür.
+
+---
+
+### GÖREV O — Sipariş CSV Export Butonu
+**Süre tahmini:** 30 dakika | **Zorluk:** Çok Düşük | **Backend:** ✅ hazır
+
+**Backend ucu:** `GET /admin/orders/export?status=&dateFrom=&dateTo=` → `siparisler_YYYYMMDD.csv` dosyası indirir.
+
+**`src/app/admin/orders/page.jsx`** mevcut filtre satırına "CSV İndir" butonu ekle:
+```jsx
+<a
+  href={`/api/admin/orders/export?${new URLSearchParams({ status, dateFrom, dateTo }).toString()}`}
+  download
+  className="btn btn-secondary"
+>
+  CSV İndir
+</a>
+```
+
+**BFF route (`src/app/api/admin/orders/export/route.js`):**
+```js
+import { passThrough } from "@/lib/server/api";
+export const GET = passThrough;
+```
+
+`<a download>` + BFF yeterli — `fetch()` gerekmez. Aktif filtreler (status, tarih aralığı) URL'e parametreli geçilsin.
+
+**Kabul kriteri:** "CSV İndir" tıklanınca tarayıcı `siparisler_YYYYMMDD.csv` dosyasını indirir; Excel'de Türkçe karakterler doğru görünür (backend BOM gönderiyor).
 
 ---
 
