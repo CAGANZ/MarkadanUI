@@ -83,6 +83,19 @@ export function CartProvider({ children }) {
     await reload();
   }, [cart, reload]);
 
+  const applyCoupon = useCallback(
+    async (code) => {
+      const data = await api("/me/cart/coupon", { method: "POST", body: { code } });
+      setCart(data);
+    },
+    []
+  );
+
+  const removeCoupon = useCallback(async () => {
+    const data = await api("/me/cart/coupon", { method: "DELETE" });
+    setCart(data);
+  }, []);
+
   const count = cart?.items?.reduce((acc, it) => acc + it.quantity, 0) ?? 0;
 
   return (
@@ -97,6 +110,8 @@ export function CartProvider({ children }) {
         removeItem,
         clear,
         acceptPriceChanges,
+        applyCoupon,
+        removeCoupon,
       }}
     >
       {children}

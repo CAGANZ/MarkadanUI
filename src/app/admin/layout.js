@@ -12,6 +12,7 @@ const NAV = [
   { href: "/admin/products", label: "Ürünler" },
   { href: "/admin/categories", label: "Kategoriler" },
   { href: "/admin/brands", label: "Markalar" },
+  { href: "/admin/coupons", label: "Kuponlar" },
   { href: "/admin/settings", label: "Ayarlar" },
 ];
 

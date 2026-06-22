@@ -5,11 +5,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { Suspense } from "react";
 import { getCategories } from "@/lib/server/catalog";
-import { BOUTIQUE } from "@/config/boutique";
 import SearchBox from "./SearchBox";
 import HeaderActions from "./HeaderActions";
 
-export default async function Header() {
+export default async function Header({ store }) {
   const categories = (await getCategories()) ?? [];
   const topCategories = categories.slice(0, 8);
 
@@ -20,19 +19,19 @@ export default async function Header() {
         <Link
           href="/"
           className="shrink-0 text-xl font-extrabold tracking-tight text-ink hover:opacity-80 sm:text-2xl"
-          aria-label={`${BOUTIQUE.name} ana sayfa`}
+          aria-label={`${store.name} ana sayfa`}
         >
-          {BOUTIQUE.logoUrl ? (
+          {store.logoUrl ? (
             <Image
-              src={BOUTIQUE.logoUrl}
-              alt={BOUTIQUE.name}
+              src={store.logoUrl}
+              alt={store.name}
               width={140}
               height={36}
               className="h-9 w-auto"
               priority
             />
           ) : (
-            BOUTIQUE.name
+            store.name
           )}
         </Link>
 

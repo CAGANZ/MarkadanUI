@@ -12,7 +12,11 @@ import Skeleton from "@/components/ui/Skeleton";
 
 const STATUS_FILTERS = [
   { value: "", label: "Tümü" },
-  { value: "Ordered", label: "Sipariş Alındı" },
+  { value: "PaymentPending", label: "Ödeme Bekleniyor" },
+  { value: "Ordered", label: "Onaylandı" },
+  { value: "Preparing", label: "Hazırlanıyor" },
+  { value: "Shipped", label: "Kargoya Verildi" },
+  { value: "Delivered", label: "Teslim Edildi" },
   { value: "Cancelled", label: "İptal Edildi" },
 ];
 
@@ -90,6 +94,21 @@ export default function AdminOrdersPage() {
             Temizle
           </Button>
         )}
+        <a
+          href={`/api/admin/orders/export?${new URLSearchParams(
+            Object.fromEntries(
+              Object.entries({
+                status: filters.status,
+                dateFrom: filters.dateFrom ? new Date(filters.dateFrom).toISOString() : "",
+                dateTo: filters.dateTo ? new Date(filters.dateTo).toISOString() : "",
+              }).filter(([, v]) => v)
+            )
+          ).toString()}`}
+          download
+          className="inline-flex items-center gap-1.5 rounded-base border border-line bg-surface-card px-4 py-2 text-sm font-semibold text-ink hover:bg-primary-soft"
+        >
+          CSV İndir
+        </a>
       </div>
 
       {/* Liste */}

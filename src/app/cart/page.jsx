@@ -18,12 +18,14 @@ import CartLine from "@/components/cart/CartLine";
 
 export default function CartPage() {
   const { user, loading: authLoading } = useAuth();
-  const { cart, loading, updateItem, removeItem, clear, acceptPriceChanges } = useCart();
+  const { cart, loading, updateItem, removeItem, clear, acceptPriceChanges, applyCoupon, removeCoupon } = useCart();
   const router = useRouter();
   const toast = useToast();
 
   const [busy, setBusy] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [couponInput, setCouponInput] = useState("");
+  const [couponBusy, setCouponBusy] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login?next=/cart");
@@ -88,8 +90,36 @@ export default function CartPage() {
     );
   }
 
+  const onApplyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setCouponBusy(true);
+    try {
+      await applyCoupon(couponInput.trim().toUpperCase());
+      setCouponInput("");
+      toast.success("Kupon uygulandı");
+    } catch (err) {
+      toast.error(err.detail || "Geçersiz veya süresi dolmuş kupon");
+    } finally {
+      setCouponBusy(false);
+    }
+  };
+
+  const onRemoveCoupon = async () => {
+    setCouponBusy(true);
+    try {
+      await removeCoupon();
+    } catch {
+      // sessiz geç
+    } finally {
+      setCouponBusy(false);
+    }
+  };
+
   const items = cart?.items ?? [];
   const hasPriceChanges = cart?.hasPriceChanges === true;
+  const activeCoupon = cart?.couponCode ?? null;
+  const discountAmount = cart?.discountAmount ?? 0;
+  const displayTotal = cart?.finalTotal ?? cart?.total ?? 0;
 
   // Boş sepet — satış fırsatı
   if (items.length === 0) {
@@ -159,11 +189,55 @@ export default function CartPage() {
         ))}
       </ul>
 
+      {/* Kupon girişi */}
+      <div className="mt-4 rounded-base border border-line bg-surface-card p-4">
+        <p className="mb-2 text-sm font-semibold text-ink">İndirim Kodu</p>
+        {activeCoupon ? (
+          <div className="flex items-center justify-between gap-3 rounded-md bg-success-soft px-3 py-2">
+            <span className="text-sm font-semibold text-success">
+              ✓ {activeCoupon} uygulandı
+            </span>
+            <button
+              type="button"
+              onClick={onRemoveCoupon}
+              disabled={couponBusy}
+              className="text-xs font-semibold text-ink-soft hover:text-danger disabled:opacity-40"
+            >
+              Kaldır
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={couponInput}
+              onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === "Enter" && onApplyCoupon()}
+              placeholder="KOD GİR..."
+              className="flex-1 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-soft focus:border-primary focus:outline-none"
+            />
+            <Button size="sm" onClick={onApplyCoupon} loading={couponBusy} disabled={!couponInput.trim()}>
+              Uygula
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* Özet + checkout */}
-      <div className="mt-6 rounded-base border border-line bg-surface-card p-4">
-        <div className="flex items-center justify-between text-lg">
+      <div className="mt-3 rounded-base border border-line bg-surface-card p-4">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-ink-soft">Ara Toplam</span>
+          <span className="text-sm text-ink">{formatPrice(cart.total)}</span>
+        </div>
+        {activeCoupon && discountAmount > 0 && (
+          <div className="mt-1.5 flex items-center justify-between">
+            <span className="text-sm text-success">İndirim ({activeCoupon})</span>
+            <span className="text-sm font-semibold text-success">-{formatPrice(discountAmount)}</span>
+          </div>
+        )}
+        <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-lg">
           <span className="font-medium text-ink">Toplam</span>
-          <span className="font-extrabold text-ink">{formatPrice(cart.total)}</span>
+          <span className="font-extrabold text-ink">{formatPrice(displayTotal)}</span>
         </div>
         <p className="mt-1 text-xs text-ink-soft">
           Tutar, ürünleri sepete eklediğiniz andaki fiyatlar üzerinden hesaplanır.

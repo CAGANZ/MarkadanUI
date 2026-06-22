@@ -11,7 +11,7 @@ import { api } from "@/lib/client/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/ui/Toast";
 import { formatPrice, formatDateTime } from "@/lib/format";
-import { statusLabel, statusBadgeClass } from "@/lib/order-status";
+import { statusLabel, statusBadgeClass, canCustomerCancel } from "@/lib/order-status";
 import { MEDIA } from "@/lib/media";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
@@ -162,15 +162,43 @@ function OrderDetail({ id }) {
         </div>
       </section>
 
+      {/* Kargo takip */}
+      {(order.status === "Shipped" || order.status === "Delivered") && order.trackingNumber && (
+        <section className="mb-6">
+          <h2 className="mb-3 text-lg font-semibold text-ink">Kargo Takip</h2>
+          <div className="flex items-center justify-between gap-3 rounded-base border border-line bg-surface-card p-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-soft">Takip No</p>
+              <p className="mt-0.5 font-mono text-sm font-bold text-ink">{order.trackingNumber}</p>
+            </div>
+            {order.trackingUrl && (
+              <a
+                href={order.trackingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 rounded-base bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+              >
+                Kargonuzu Takip Edin →
+              </a>
+            )}
+          </div>
+        </section>
+      )}
+
       <div className="flex items-center justify-between">
         <Link href="/account/orders" className="text-sm font-semibold text-accent hover:underline">
           ‹ Siparişlerime dön
         </Link>
-        {order.status === "Ordered" && (
-          <Button variant="danger" onClick={() => setConfirmCancel(true)}>
-            Siparişi İptal Et
-          </Button>
-        )}
+        <div className="flex flex-col items-end gap-1">
+          {canCustomerCancel(order.status) && (
+            <Button variant="danger" onClick={() => setConfirmCancel(true)}>
+              Siparişi İptal Et
+            </Button>
+          )}
+          {order.status === "Shipped" && (
+            <p className="text-xs text-ink-soft">Kargo çıktıktan sonra iptal edilemez.</p>
+          )}
+        </div>
       </div>
 
       {/* İptal onayı */}
@@ -191,8 +219,16 @@ function OrderDetail({ id }) {
       >
         <p>
           <strong className="font-mono">{order.orderNumber}</strong> numaralı siparişinizi iptal
-          etmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+          etmek istediğinize emin misiniz?
         </p>
+        {(order.status === "Ordered" || order.status === "Preparing") && (
+          <p className="mt-2 text-sm text-ink-soft">
+            Siparişiniz iptal edilecek ve ödemeniz iade edilecektir.
+          </p>
+        )}
+        {order.status === "PaymentPending" && (
+          <p className="mt-2 text-sm text-ink-soft">Siparişiniz iptal edilecektir.</p>
+        )}
       </Modal>
     </div>
   );

@@ -5,6 +5,17 @@
 1. **`WHO.md`** — Çağan kimdir, nasıl çalışmak istiyor
 2. **`WHAT.md`** — Proje ne, mimari neden böyle, kararlar neden alındı
 3. **`STATUS.md`** — Şu an neredeyiz, ne bitti, sırada ne var
+4. **`DESIGN.md`** — Tasarım sistemi (tipografi, renk, spacing, motion, kurallar)
+
+## Design System
+
+`DESIGN.md` dosyası bu projenin tasarım kaynağıdır. Her UI/görsel karar öncesi okunmalı.
+
+- Font: **Cormorant Garamond** (display, `text-2xl`+) + **Instrument Sans** (body, UI)
+- Renk: sadece `theme.css` token'ları (`bg-primary`, `text-ink`, `border-line` vb.) — hex/amber/neutral YASAK
+- Spacing: storefront `spacing-12/16` (geniş), admin `spacing-4/6` (kompakt)
+- Motion: intentional — sadece anlam taşıyan, 80-350ms arası
+- QA modunda: `DESIGN.md`'ye uymayan kodu işaretle
 
 ---
 

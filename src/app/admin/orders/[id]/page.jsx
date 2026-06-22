@@ -20,8 +20,13 @@ export default function AdminOrderDetailPage({ params }) {
 
   const [order, setOrder] = useState(null);
   const [error, setError] = useState("");
-  const [confirmStatus, setConfirmStatus] = useState(null); // hedef durum
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [trackingNumber, setTrackingNumber] = useState("");
+  const [trackingUrl, setTrackingUrl] = useState("");
+  const [confirmStatus, setConfirmStatus] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const STATUS_FLOW = ["Ordered", "Preparing", "Shipped", "Delivered", "Cancelled"];
 
   useEffect(() => {
     api(`/admin/orders/${id}`)
@@ -34,14 +39,20 @@ export default function AdminOrderDetailPage({ params }) {
     try {
       await api(`/admin/orders/${id}/status`, {
         method: "PUT",
-        body: { status: confirmStatus },
+        body: {
+          status: selectedStatus,
+          ...(selectedStatus === "Shipped" && trackingNumber
+            ? { trackingNumber, trackingUrl: trackingUrl || undefined }
+            : {}),
+        },
       });
       toast.success("Sipariş durumu güncellendi");
-      setConfirmStatus(null);
+      setConfirmStatus(false);
+      setSelectedStatus("");
       setOrder(await api(`/admin/orders/${id}`));
     } catch (err) {
       toast.error(err.detail || "Durum güncellenemedi");
-      setConfirmStatus(null);
+      setConfirmStatus(false);
     } finally {
       setBusy(false);
     }
@@ -69,8 +80,7 @@ export default function AdminOrderDetailPage({ params }) {
     );
   }
 
-  // Mevcut durumdan diğer duruma geçiş
-  const nextStatus = order.status === "Ordered" ? "Cancelled" : "Ordered";
+  const availableStatuses = STATUS_FLOW.filter((s) => s !== order.status);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -130,30 +140,101 @@ export default function AdminOrderDetailPage({ params }) {
         </div>
       </section>
 
-      <div className="flex items-center justify-between">
-        <Link href="/admin/orders" className="text-sm font-semibold text-accent hover:underline">
-          ‹ Sipariş listesine dön
-        </Link>
-        <Button
-          variant={nextStatus === "Cancelled" ? "danger" : "primary"}
-          onClick={() => setConfirmStatus(nextStatus)}
-        >
-          {nextStatus === "Cancelled" ? "Siparişi İptal Et" : "Siparişi Aktifleştir"}
-        </Button>
-      </div>
+      {/* Mevcut kargo takip bilgisi */}
+      {order.trackingNumber && (
+        <section className="mb-6">
+          <h2 className="mb-3 text-lg font-semibold text-ink">Kargo Takip</h2>
+          <div className="flex items-center justify-between gap-3 rounded-base border border-line bg-surface-card p-4 text-sm">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-soft">Takip No</p>
+              <p className="mt-0.5 font-mono font-bold text-ink">{order.trackingNumber}</p>
+              {order.trackingUrl && (
+                <a
+                  href={order.trackingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-accent hover:underline"
+                >
+                  {order.trackingUrl}
+                </a>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Durum güncelleme */}
+      <section className="mb-6">
+        <h2 className="mb-3 text-lg font-semibold text-ink">Durum Güncelle</h2>
+        <div className="space-y-3 rounded-base border border-line bg-surface-card p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={selectedStatus}
+              onChange={(e) => {
+                setSelectedStatus(e.target.value);
+                if (e.target.value !== "Shipped") {
+                  setTrackingNumber("");
+                  setTrackingUrl("");
+                }
+              }}
+              className="flex-1 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none"
+            >
+              <option value="">— Durum seç —</option>
+              {availableStatuses.map((s) => (
+                <option key={s} value={s}>{statusLabel(s)}</option>
+              ))}
+            </select>
+            <Button
+              variant={selectedStatus === "Cancelled" ? "danger" : "primary"}
+              disabled={!selectedStatus}
+              onClick={() => setConfirmStatus(true)}
+            >
+              Güncelle
+            </Button>
+          </div>
+          {selectedStatus === "Shipped" && (
+            <div className="space-y-2 border-t border-line pt-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-ink-soft">Kargo Takip No *</label>
+                <input
+                  type="text"
+                  value={trackingNumber}
+                  onChange={(e) => setTrackingNumber(e.target.value)}
+                  placeholder="YK123456789TR"
+                  className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-ink-soft">Kargo Takip URL (opsiyonel)</label>
+                <input
+                  type="url"
+                  value={trackingUrl}
+                  onChange={(e) => setTrackingUrl(e.target.value)}
+                  placeholder="https://gonderitakip.yurticikargo.com/track/..."
+                  className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <Link href="/admin/orders" className="text-sm font-semibold text-accent hover:underline">
+        ‹ Sipariş listesine dön
+      </Link>
 
       {/* Durum değişikliği onayı */}
       <Modal
-        open={!!confirmStatus}
-        onClose={() => setConfirmStatus(null)}
+        open={confirmStatus}
+        onClose={() => setConfirmStatus(false)}
         title="Durum Güncelle"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setConfirmStatus(null)}>
+            <Button variant="ghost" onClick={() => setConfirmStatus(false)}>
               Vazgeç
             </Button>
             <Button
-              variant={confirmStatus === "Cancelled" ? "danger" : "primary"}
+              variant={selectedStatus === "Cancelled" ? "danger" : "primary"}
               loading={busy}
               onClick={updateStatus}
             >
@@ -165,7 +246,7 @@ export default function AdminOrderDetailPage({ params }) {
         <p>
           <strong className="font-mono">{order.orderNumber}</strong> numaralı siparişin durumu{" "}
           <strong>{statusLabel(order.status)}</strong> →{" "}
-          <strong>{statusLabel(confirmStatus)}</strong> olarak değiştirilecek. Onaylıyor musunuz?
+          <strong>{statusLabel(selectedStatus)}</strong> olarak değiştirilecek. Onaylıyor musunuz?
         </p>
       </Modal>
     </div>

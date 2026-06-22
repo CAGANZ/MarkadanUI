@@ -9,7 +9,7 @@ import { MEDIA } from "@/lib/media";
 import AddToCartButton from "@/components/cart/AddToCartButton";
 import ProductCard from "@/components/catalog/ProductCard";
 import WishlistButton from "@/components/catalog/WishlistButton";
-import { BOUTIQUE } from "@/config/boutique";
+import { getStoreSettings } from "@/lib/server/storeSettings";
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
@@ -19,11 +19,11 @@ export async function generateMetadata({ params }) {
 
 export default async function ProductDetailPage({ params }) {
   const { id } = await params;
-  const product = await getProduct(id);
+  const [product, store] = await Promise.all([getProduct(id), getStoreSettings()]);
   if (!product) notFound();
 
-  const whatsappUrl = BOUTIQUE.whatsappPhone
-    ? `https://wa.me/${BOUTIQUE.whatsappPhone}?text=${encodeURIComponent(
+  const whatsappUrl = store.whatsappPhone
+    ? `https://wa.me/${store.whatsappPhone}?text=${encodeURIComponent(
         `Merhaba, "${product.title}" ürününü sipariş etmek istiyorum.\nhttps://markadan.com/products/${id}`
       )}`
     : null;
