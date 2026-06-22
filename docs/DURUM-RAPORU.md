@@ -519,6 +519,59 @@ export const GET = passThrough;
 
 ---
 
+### GÖREV P — SEO Slug URL Güncellemesi
+**Süre tahmini:** 1-2 saat | **Zorluk:** Düşük | **Backend:** ✅ hazır (627af25)
+
+Ürün URL'leri `/products/42` → `/products/nike-air-max-2024` formatına geçiyor.
+
+**Backend değişiklikleri:**
+- `Product`'a `slug` (benzersiz) ve `metaDescription` alanları eklendi.
+- Yeni route: `GET /products/{slug}` — var olan `GET /products/{id:int}` de çalışmaya devam eder.
+- `ProductDetailDTO` ve `ProductListDTO`'ya `slug` ve `metaDescription` eklendi.
+
+**Frontend değişiklikleri:**
+
+1. **`src/lib/server/catalog.js`** — ürün detay fetch'ini slug ile yap:
+   ```js
+   export async function getProductBySlug(slug) {
+     return backendFetch(`/products/${slug}`);
+   }
+   ```
+
+2. **`src/app/products/[id]/page.jsx`** → **`src/app/products/[slug]/page.jsx`** olarak taşı:
+   - `params.id` → `params.slug`
+   - `getProductBySlug(slug)` kullan
+   - `<head>` meta tag'larına `metaDescription` ekle:
+     ```jsx
+     export async function generateMetadata({ params }) {
+       const { slug } = await params;
+       const product = await getProductBySlug(slug);
+       return {
+         title: product.title,
+         description: product.metaDescription ?? product.description?.slice(0, 160),
+       };
+     }
+     ```
+
+3. **`src/components/catalog/ProductCard.jsx`** — linki güncelle:
+   ```jsx
+   href={`/products/${product.slug}`}
+   ```
+
+4. **`src/app/admin/orders/[id]/page.jsx`** vb. — sipariş detayındaki ürün linkleri varsa güncelle.
+
+5. **`src/app/api/products/[slug]/route.js`** — BFF proxy güncelle (path segment değişti).
+
+**Dikkat:**
+- Mevcut DB'deki ürünlerin slug'ı migration'da `CAST(Id AS nvarchar)` ile atandı (örn. "42").
+  Bu geçerli bir slug — URL `GET /products/42` hem int route hem slug route ile çalışır, sorun yok.
+  Admin panelden slug'ları düzenleyebilir.
+- Checkout, sepet gibi akışlarda ürün ID'si hâlâ int — yalnızca public ürün sayfası URL'si değişiyor.
+
+**Kabul kriteri:** `/products/nike-air-max-2024` ürün sayfasını açar; `<title>` ve `<meta description>` dolu gelir.
+
+---
+
 ### Sonraki görevler — backend ekibinden gelecek
 
 ---
