@@ -1,17 +1,27 @@
 # STATUS — Markadan Frontend Şu An Neredeyiz
 
-**Son güncelleme:** 2026-06-13  
+**Son güncelleme:** 2026-06-22  
 **Güncelleyen:** Claude
 
 ---
 
 ## Şu an ne durumda
 
-GÖREV I (iyzico frontend) frontend tarafı tamamlandı. Backend'de iyzico sandbox credential sorunu var — backend ekibi çözünce uçtan uca test edilebilir.
+GÖREV J→O tamamlandı (commit: a3a3017). DESIGN.md oluşturuldu. Backend ekibinden yeni görev bekleniyor.
 
 ---
 
 ## Son oturumda ne yapıldı
+
+**2026-06-22**
+- DESIGN.md oluşturuldu (Cormorant Garamond + Instrument Sans, editorial butik yönü)
+- GÖREV J: Sipariş iptal akışı — 6 durum, canCustomerCancel, iade mesajları, admin dropdown genişletildi
+- GÖREV K: Dinamik mağaza verisi — getStoreSettings() + 60s cache, Header/Footer/products bağlandı
+- GÖREV L: Middleware auth guard — /account ve /admin token yoksa /login?next= yönlendirmesi
+- GÖREV M: Kupon UI — useCart applyCoupon/removeCoupon, sepet kupon girişi, admin CRUD (/admin/coupons)
+- GÖREV N: Kargo takip — müşteri sipariş detayında takip bloğu, admin Shipped seçilince form alanları
+- GÖREV O: CSV export butonu admin sipariş listesine eklendi
+- Build: temiz ✅
 
 **2026-06-13**
 - GÖREV I (iyzico ödeme entegrasyonu) frontend tamamlandı:
@@ -41,11 +51,7 @@ Yok — bekleme modunda.
 
 ## Sıradaki (öncelik sırasıyla)
 
-Backend ekibinden gelecek. Bilinen adaylar (ileride değerlendirilecek):
-
-1. Dinamik mağaza verisi — `GET /store-settings` → Header/Footer'a bağla (şu an `boutique.js` statik)
-2. WhatsApp ↔ Admin Settings senkronu — `boutique.js` yerine `GET /store-settings`
-3. Middleware auth guard — `src/middleware.js` ile server-side token kontrolü
+Backend ekibinden gelecek.
 
 ---
 
@@ -53,6 +59,13 @@ Backend ekibinden gelecek. Bilinen adaylar (ileride değerlendirilecek):
 
 | Tarih | Görev | Notlar |
 |-------|-------|--------|
+| 2026-06-22 | GÖREV J — İptal akışı güncelleme | 6 durum, canCustomerCancel, iade mesajları |
+| 2026-06-22 | GÖREV K — Dinamik mağaza verisi | getStoreSettings() 60s cache, Header/Footer/products |
+| 2026-06-22 | GÖREV L — Middleware auth guard | /account + /admin token kontrolü, ?next= yönlendirme |
+| 2026-06-22 | GÖREV M — Kupon UI | sepet kupon girişi + admin CRUD |
+| 2026-06-22 | GÖREV N — Kargo takip | müşteri detay bloğu + admin Shipped formu |
+| 2026-06-22 | GÖREV O — CSV export | Admin sipariş listesine CSV İndir butonu |
+| 2026-06-22 | DESIGN.md | Tasarım sistemi belgesi oluşturuldu |
 | 2026-06-12 | GÖREV G — Görsel QA | admin/settings BFF route bug'ı bulundu ve düzeltildi |
 | 2026-06-12 | Faz 8F — Favori listesi | WishlistButton + /account/wishlist + 3 BFF route |
 | 2026-06-12 | Faz 8E — CSV toplu yükleme | Admin modal + BFF multipart proxy |
