@@ -1,6 +1,6 @@
 # Markadan Frontend — Durum Raporu ve Görev Listesi
 
-**Tarih:** 2026-06-20 | **Son backend commit:** `16f59fb` | **Build:** ✅ temiz | **E2E test:** ✅ tüm akışlar geçti
+**Tarih:** 2026-06-23 | **Son backend commit:** `a179d07` | **Build:** ✅ temiz | **E2E test:** ✅ tüm akışlar geçti
 **Hazırlayan:** Mimar | **Hedef okuyucu:** Projeye devam edecek geliştirici
 
 > **Başlamadan önce sırasıyla oku:**
@@ -75,6 +75,11 @@ UI çözümü: `useCart.acceptPriceChanges` — silip yeniden ekler.
 - **G9 Kupon sistemi:** `CartDTO`'ya `couponCode`, `discountAmount`, `finalTotal` eklendi. Yeni sepet uçları: `POST /me/cart/coupon`, `DELETE /me/cart/coupon`. Admin CRUD: `/admin/coupons`.
 - **G5 Kargo takip:** `OrderDTO` ve `AdminOrderDTO`'ya `trackingNumber`, `trackingUrl` eklendi. Admin durum güncelleme body'si genişletildi.
 - **G7 CSV export:** `GET /admin/orders/export` ucu eklendi — tarayıcıdan doğrudan indirme çalışır.
+
+**2026-06-22–23 backend değişiklikleri (yeni görevler R–S için bağlam):**
+- **G4 Tekrar sipariş ver:** `POST /me/orders/{id}/reorder` eklendi. Tamamlanan siparişin ürünlerini aktif sepete kopyalar; stokta olmayan ürünler atlanır, güncel fiyat snapshot alınır. Yanıt: `CartDTO`.
+- **G12 Benzer ürünler:** `GET /products/{id}/related?limit=6` eklendi. Aynı kategori, stokta olan, fiyata yakın ürünler döner. Yanıt: `ProductListDTO[]`.
+- **G13 WhatsApp bildirimi:** Sipariş onaylanınca `AppUser.PhoneNumber` varsa WhatsApp mesajı gönderilir. Frontend'in müşteriden telefon alması gerekiyor (bkz. GÖREV S).
 
 ---
 
@@ -569,6 +574,151 @@ export const GET = passThrough;
 - Checkout, sepet gibi akışlarda ürün ID'si hâlâ int — yalnızca public ürün sayfası URL'si değişiyor.
 
 **Kabul kriteri:** `/products/nike-air-max-2024` ürün sayfasını açar; `<title>` ve `<meta description>` dolu gelir.
+
+---
+
+### GÖREV Q — Stok Bildirimi (Giriş Gerektirmez)
+**Süre tahmini:** 1-2 saat | **Zorluk:** Düşük | **Backend:** ✅ hazır (G3)
+
+Tükenmiş ürün sayfasında "Stok gelince haber ver" butonu. Kullanıcı giriş yapmak zorunda değil.
+
+**Backend ucu:**
+```
+POST /products/{id}/notify-stock
+Body: { "email": "string", "name": "string?" }
+Yanıt 200: { "message": "..." }
+Yanıt 404: ürün bulunamadı
+Aynı email ile tekrar kayıt → 200 (idempotent, hata vermez)
+```
+Stok restore edilince (admin ürünü günceller, Stock 0→pozitif) kayıtlı tüm e-postalar mail alır ve kayıt silinir.
+
+**Frontend değişiklikleri:**
+
+1. **`src/components/catalog/ProductDetail.jsx`** (veya ürün detay bileşeni):
+   - `product.stock === 0` iken `StockNotifyForm` bileşeni göster, sepete ekle butonunu gizle.
+
+2. **Yeni bileşen `src/components/catalog/StockNotifyForm.jsx`:**
+   ```jsx
+   // Email input + "Haber ver" butonu
+   // Başarıda toast + form gizle
+   const handleSubmit = async (e) => {
+     e.preventDefault();
+     await api(`/products/${productId}/notify-stock`, {
+       method: "POST",
+       body: { email, name },
+     });
+     toast.success("Stok geldiğinde e-posta ile bildirileceksiniz.");
+     setSubmitted(true);
+   };
+   ```
+
+**Kabul kriteri:** Stoku 0 olan ürün sayfasında form görünür; email girilip gönderilince toast çıkar, form yerine "Kaydınız alındı" mesajı gelir.
+
+---
+
+### GÖREV R — Tekrar Sipariş Ver
+**Süre tahmini:** 1 saat | **Zorluk:** Düşük | **Backend:** ✅ hazır (G4)
+
+Müşteri sipariş detay sayfasında tamamlanmış siparişlere "Tekrar Sipariş Ver" butonu.
+
+**Backend ucu:**
+```
+POST /me/orders/{id}/reorder
+Body: (boş)
+Yanıt 200: CartDTO  ← aktif sepet güncellendi
+Yanıt 404: sipariş bulunamadı
+Yanıt 400: sipariş aktif/ödeme bekleniyor durumunda (tekrar siparişe uygun değil)
+```
+Stokta olmayan ürünler atlanır, güncel fiyat snapshot alınır. Sepette zaten varsa miktar artırılır.
+
+**Frontend değişiklikleri:**
+
+1. **`src/app/account/orders/[id]/page.jsx`** — sipariş `Delivered` veya `Cancelled` ise "Tekrar Sipariş Ver" butonu göster:
+   ```jsx
+   {(order.status === "Delivered" || order.status === "Cancelled") && (
+     <Button onClick={handleReorder} loading={reordering}>
+       Tekrar Sipariş Ver
+     </Button>
+   )}
+   ```
+
+2. Handler:
+   ```js
+   const handleReorder = async () => {
+     setReordering(true);
+     try {
+       await api(`/me/orders/${order.id}/reorder`, { method: "POST" });
+       toast.success("Ürünler sepetinize eklendi.");
+       router.push("/cart");
+     } catch (err) {
+       toast.error(err.detail);
+     } finally {
+       setReordering(false);
+     }
+   };
+   ```
+
+3. **BFF route `src/app/api/me/orders/[id]/reorder/route.js`:**
+   ```js
+   import { passThrough } from "@/lib/server/api";
+   export const POST = passThrough;
+   ```
+
+**Kabul kriteri:** Teslim edilmiş sipariş detayında "Tekrar Sipariş Ver" tıklanınca sepete yönlendirir; tükenmiş ürünler atlanmış, kalan ürünler sepette.
+
+---
+
+### GÖREV S — Benzer Ürünler + WhatsApp Telefon
+**Süre tahmini:** 2-3 saat | **Zorluk:** Düşük | **Backend:** ✅ hazır (G12 + G13)
+
+#### S1 — Ürün detayına benzer ürünler bölümü
+
+**Backend ucu:**
+```
+GET /products/{id}/related?limit=6
+Yanıt: ProductListDTO[]
+```
+`ProductListDTO` zaten kullandığın `ProductCard` bileşeniyle uyumlu.
+
+**`src/app/products/[slug]/page.jsx`** (veya `ProductDetail` bileşeni):
+```jsx
+// Ürünün altına ekle
+const related = await getRelatedProducts(product.id);
+
+{related.length > 0 && (
+  <section>
+    <h2>Benzer Ürünler</h2>
+    <div className="product-grid">
+      {related.map(p => <ProductCard key={p.id} product={p} />)}
+    </div>
+  </section>
+)}
+```
+
+**`src/lib/server/catalog.js`'e ekle:**
+```js
+export async function getRelatedProducts(productId, limit = 6) {
+  return backendFetch(`/products/${productId}/related?limit=${limit}`);
+}
+```
+
+**Kabul kriteri:** Ürün detay sayfasının altında aynı kategoriden en fazla 6 ürün görünür; tıklanınca ilgili ürün sayfasına gider.
+
+---
+
+#### S2 — Kayıt / profil sayfasına telefon alanı
+
+WhatsApp bildirimleri için `AppUser.PhoneNumber` dolu olmalı. `IdentityUser.PhoneNumber` zaten var; backend `PUT /me/profile` ile güncelleniyor.
+
+**`src/app/register/page.jsx`** — opsiyonel telefon alanı ekle:
+```
+Telefon (WhatsApp)  [+90 5XX XXX XX XX]   ← opsiyonel
+```
+Kayıt body'sine `phoneNumber` ekle. Backend `POST /auth/register`'ı kontrol et — alan kabul ediliyorsa direkt, değilse kayıt sonrası `PUT /me/profile` ile güncelle.
+
+**`src/app/account/profile/page.jsx`** (varsa) — mevcut profil düzenleme formuna da ekle.
+
+**Kabul kriteri:** Kayıt sırasında telefon girilince sipariş onayında WhatsApp mesajı gider (backend `WhatsApp__Enabled=true` iken).
 
 ---
 
