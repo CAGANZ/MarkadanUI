@@ -1,19 +1,32 @@
 # STATUS — Markadan Frontend Şu An Neredeyiz
 
-**Son güncelleme:** 2026-06-22  
+**Son güncelleme:** 2026-06-24  
 **Güncelleyen:** Claude
 
 ---
 
 ## Şu an ne durumda
 
-GÖREV J→O tamamlandı (commit: a3a3017). DESIGN.md oluşturuldu. Backend ekibinden yeni görev bekleniyor.
+Ödeme akışı mock ile çalışıyor, sipariş alınıyor ✅. iyzico gerçek entegrasyon ertelendi. Frontend tamamlandı, backend'den yeni görev bekleniyor.
 
 ---
 
 ## Son oturumda ne yapıldı
 
-**2026-06-22**
+**2026-06-24**
+- Çağan siteyi uçtan uca test etti (admin dahil). Ürün yönetiminde 5 iyileştirme tespit edildi → **GÖREV T** (docs/DURUM-RAPORU.md).
+- **T1 ✅ (frontend):** Admin ürün listesine "CSV İndir" eklendi — yükleme ile aynı başlık, round-trip uyumlu (description detaydan tamamlanıyor, UTF-8 BOM + CRLF).
+- **T4 UI hazır:** Listede aktif/pasif toggle eklendi, `isActive` alanı backend'den gelince otomatik görünür.
+- **T6 güvenlik (frontend ✅):** Bulk BFF route'a auth/boyut(413)/uzantı-tip(415)/boş kontrolü; middleware `/api/admin/*` 401; form ön-kontrolü; export'ta CSV formül enjeksiyonu sanitizasyonu (`=`/`+`/`@`).
+- **Backend'e iletildi (GÖREV T):** T2 products export endpoint, T3 bulk **upsert** semantiği (eski ürünler silinmemeli), T4 `isActive` + PATCH toggle, T5 jenerik varyant/opsiyon sistemi, **T6 backend güvenlik zorunlulukları (rol 403, sunucu boyut/satır limiti, MIME, ImageUrl SSRF, rate limit)**.
+- Build: temiz ✅
+
+**2026-06-23**
+- iyzico credentials sorunu → backend mock ödeme koydu, sipariş akışı uçtan uca çalışıyor ✅
+- Gerçek iyzico entegrasyonu ertelendi (credentials hazır olunca dönülecek)
+- "Unable to add filesystem" → ürün veritabanındaki silinmiş Unsplash görseli (`photo-1594938298603-c8148c4b4d2a`) — admin panelden URL güncellenmeli
+
+**2026-06-22 (oturum 1)**
 - DESIGN.md oluşturuldu (Cormorant Garamond + Instrument Sans, editorial butik yönü)
 - GÖREV J: Sipariş iptal akışı — 6 durum, canCustomerCancel, iade mesajları, admin dropdown genişletildi
 - GÖREV K: Dinamik mağaza verisi — getStoreSettings() + 60s cache, Header/Footer/products bağlandı
@@ -29,7 +42,7 @@ GÖREV J→O tamamlandı (commit: a3a3017). DESIGN.md oluşturuldu. Backend ekib
   - `src/app/api/me/checkout/confirm/route.js` — yeni BFF proxy
   - `src/app/checkout/page.jsx` — 2 adımlı iyzico akışı (initiate → popup → confirm)
   - Adres format düzeltmesi: ` / ` → `, ` (checkout + adreslerim sayfası)
-- **Backend blocker:** `POST /me/checkout/initiate` → iyzico `"Geçersiz imza"` hatası (409). Sandbox API Key/Secret Key doğrulanmalı.
+- **Backend blocker:** `POST /me/checkout/initiate` → iyzico `"Geçersiz imza"` hatası (409). Sandbox API Key/Secret Key doğrulanmalı. → **Backend ekibine iletildi 2026-06-22, çözüm bekliyor.**
 
 **2026-06-12**
 - GÖREV G (Görsel QA) tamamlandı — tüm akışlar headless Chromium ile test edildi
@@ -45,13 +58,19 @@ GÖREV J→O tamamlandı (commit: a3a3017). DESIGN.md oluşturuldu. Backend ekib
 
 ## Devam Eden
 
-Yok — bekleme modunda.
+GÖREV T — backend bekliyor (T2/T3/T4/T5). Frontend tarafı T1 bitti, T4 UI hazır.
 
 ---
 
 ## Sıradaki (öncelik sırasıyla)
 
-Backend ekibinden gelecek.
+1. **GÖREV T6** — backend güvenlik zorunlulukları (admin rol 403, sunucu boyut/satır limiti, MIME, ImageUrl SSRF, rate limit) → backend
+2. **GÖREV T3** — bulk yükleme upsert davranışı (veri kaybı riski) → backend
+3. **GÖREV T4** — `isActive` alanı + `PATCH /admin/products/{id}/active` → backend; sonra frontend BFF route (`src/app/api/admin/products/[id]/active/route.js`) ekle
+4. **GÖREV T2** — `/admin/products/export` endpoint → client-side export'u sadeleştirir
+5. **GÖREV T5** — jenerik varyant/opsiyon sistemi → önce backend mimari kararı
+6. Admin panelden kırık Unsplash görselini güncelle (içerik fix, kod değil)
+7. iyzico gerçek entegrasyon — credentials hazır olunca dönülecek
 
 ---
 
@@ -59,6 +78,7 @@ Backend ekibinden gelecek.
 
 | Tarih | Görev | Notlar |
 |-------|-------|--------|
+| 2026-06-24 | GÖREV T1 — Ürün CSV İndir | Round-trip uyumlu, client-side, BOM+CRLF |
 | 2026-06-22 | GÖREV J — İptal akışı güncelleme | 6 durum, canCustomerCancel, iade mesajları |
 | 2026-06-22 | GÖREV K — Dinamik mağaza verisi | getStoreSettings() 60s cache, Header/Footer/products |
 | 2026-06-22 | GÖREV L — Middleware auth guard | /account + /admin token kontrolü, ?next= yönlendirme |

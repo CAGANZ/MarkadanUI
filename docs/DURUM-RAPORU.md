@@ -722,6 +722,91 @@ Kayıt body'sine `phoneNumber` ekle. Backend `POST /auth/register`'ı kontrol et
 
 ---
 
+### GÖREV T — Ürün Yönetimi: Export, Bulk Upsert, Pasif Durum, Varyantlar
+**Süre tahmini:** T1 ✅ bitti · T2-T3-T4 backend · T5 büyük (backend + frontend) | **Tetikleyen:** QA sonrası Çağan geri bildirimi (2026-06-24)
+
+Site uçtan uca test edildi. Ürün yönetiminde 5 iyileştirme tespit edildi. T1 frontend'de tamamlandı; T2–T5 backend desteği gerektiriyor (DTO/endpoint mevcut değil — swagger ile doğrulandı 2026-06-24).
+
+---
+
+#### T1 — CSV Dışa Aktarma (çekme) ✅ TAMAMLANDI (frontend, 2026-06-24)
+**Amaç:** Var olan ürünleri CSV olarak indir → Excel'de toplu düzenle → tekrar yükle (round-trip).
+
+Yapılan: `src/app/admin/products/page.jsx` → "CSV İndir" butonu. Tüm ürünler `/admin/products` listesinden (büyük pageSize) çekilir; admin liste `description` döndürmediği için her ürün `/admin/products/{id}` detayından tamamlanır (8'lik eşzamanlı gruplar). Çıktı yükleme ile **aynı başlık**: `Title,Description,Price,Stock,BrandName,CategoryName,ImageUrl`. UTF-8 BOM + CRLF (Excel Türkçe uyumu). Dosya: `urunler_YYYYMMDD.csv`.
+
+**Sınırlama:** Katalog büyüdükçe (yüzlerce ürün) N adet detay çağrısı yapılıyor — geçici çözüm. Kalıcı çözüm T2.
+
+#### T2 — Backend `/admin/products/export` Endpoint (kalıcı çözüm) — **BACKEND**
+T1'in client-side detay çağrılarını ortadan kaldırır. `/admin/orders/export` ile birebir aynı desen:
+```
+GET /admin/products/export?q=&sort=
+→ text/csv; charset=utf-8 (BOM'lu), Content-Disposition: attachment; filename="urunler_YYYYMMDD.csv"
+Başlık satırı: Title,Description,Price,Stock,BrandName,CategoryName,ImageUrl
+```
+Hazır olunca frontend'de tek satır BFF route (`src/app/api/admin/products/export/route.js`, orders/export'un kopyası) + butonu `<a download href="/api/admin/products/export?...">`'a çevir. **Kabul:** tek istekte tüm katalog, description dahil, doğru iner.
+
+#### T3 — Bulk Yükleme Semantiği: UPSERT (eskiyi silme) — **BACKEND**
+**Sorun:** `POST /admin/products/bulk` davranışı belgesiz. Dosyada olmayan eski ürünlerin silinip silinmediği bilinmiyor. **İstenen:** eskiler silinmeden, dosyadakiler eklensin/güncellensin.
+- Varsayılan davranış **append/upsert** olmalı: CSV'de olmayan ürünler **silinmez**.
+- Eşleştirme anahtarı netleştirilsin: `slug` (benzersiz) veya `Title+BrandName`. Eşleşen ürün **güncellenir**, eşleşmeyen **eklenir**.
+- (Opsiyonel) `?mode=upsert|append|replace` query parametresi — varsayılan `upsert`. `replace` yalnızca açıkça istenirse.
+- Boş hücre davranışı tanımlansın: boş `Description` mevcut açıklamayı **silmemeli** (T1 export zaten dolduruyor ama elle düzenlemede risk).
+
+**Kabul:** 20 ürünlük katalogda, 2 ürünlük CSV yüklenince diğer 18 ürün yerinde kalır; 2 ürün eklenir/güncellenir.
+
+#### T4 — İçerik Açmadan Pasife Alma — **BACKEND + frontend (UI hazır)**
+**Sorun:** Pasif ürün yapmak için ürünü düzenleme sayfasına girmek gerekiyor; modelde `isActive` alanı yok.
+
+Backend:
+- `Product`'a `isActive` (bool, default `true`) ekle. `ProductListDTO` ve `ProductDetailDTO`'ya ekle.
+- Toggle endpoint: `PATCH /admin/products/{id}/active` body `{ "isActive": bool }` → 200.
+- Public katalog (`GET /products`, `/products/{slug}`) **yalnızca `isActive=true`** döndürmeli. Admin liste hepsini döndürür.
+
+Frontend (hazır, backend bekliyor): `src/app/admin/products/page.jsx`'te liste satırına "Aktif/Pasif" toggle eklendi; `items[0].isActive !== undefined` olunca **otomatik görünür**. Handler `PATCH /admin/products/{id}/active` çağırıyor. Backend hazır olunca tek yapılacak: BFF route `src/app/api/admin/products/[id]/active/route.js` (PATCH passthrough) eklemek.
+
+**Kabul:** Listede toggle'a basınca ürün anında pasife/aktife geçer; pasif ürün public katalogda görünmez.
+
+#### T5 — Jenerik Ürün Varyantları / Opsiyonları — **BACKEND (büyük) + frontend**
+**Amaç:** Sadece kıyafet bedeni değil; takı/eşarp/elektronik için renk, kapasite vb. **isteğe bağlı** seçenekler. Kategori veya ürün düzeyinde opsiyon tanımlanıp ürüne uygulanabilmeli.
+
+Önerilen jenerik model (EAV değil, opsiyon+varyant):
+```
+ProductOption      { id, productId, name ("Beden"/"Renk"), sortOrder }
+ProductOptionValue { id, optionId, value ("M"/"Kırmızı"), sortOrder }
+ProductVariant     { id, productId, sku?, priceDelta|price, stock, imageUrl?,
+                     optionValueIds: [..] }   // seçenek kombinasyonu
+```
+- Varyantsız ürün (tekil) mevcut akışla çalışmaya devam etmeli — `stock`/`price` ürün düzeyinde.
+- Sepet/sipariş satırı `variantId` taşımalı; stok düşümü varyant bazında.
+- DTO'lar: `ProductDetailDTO.options[]` + `variants[]`; `CartItem`/`OrderItem`'a `variantId` + seçilen değerler.
+
+Kapsam büyük — önce backend veri modeli + API kararı, sonra ayrı frontend görevi (ürün detayında seçici, admin'de opsiyon/varyant editörü, sepette varyant gösterimi). **Bu madde için önce backend mimari kararı bekleniyor.**
+
+#### T6 — CSV Yükleme Güvenliği — **frontend kısmı ✅ / backend ZORUNLU**
+CSV yükleme bir dosya alım yüzeyi; saldırı vektörleri ele alındı.
+
+**Frontend'de yapıldı (2026-06-24, defense-in-depth):**
+- BFF `src/app/api/admin/products/bulk/route.js`: token yoksa 401; `Content-Length` > 10 MB → 413 (gövde belleğe alınmadan); dosya yoksa/boşsa 400; uzantı `.csv` değilse veya tip beyaz listede değilse 415.
+- `src/middleware.js`: `/api/admin/*` matcher'a eklendi — kimliksiz çağrı erken 401 JSON (redirect değil).
+- Frontend form: yükleme öncesi uzantı + boyut + boş dosya kontrolü.
+- CSV **export** (T1): formül enjeksiyonu sanitizasyonu — `=`, `+`, `@` ile başlayan hücreler `'` ile metne çevrilir.
+
+**Backend'de ZORUNLU (asıl otorite — frontend kapıları bypass edilebilir, doğrudan API'ye istek atılabilir):**
+1. **Rol kontrolü:** `/admin/*` uçları `Admin` rolü olmayan token'ı **403** ile reddetmeli. Middleware yalnızca token *varlığına* bakıyor, role bakmıyor — yetki kontrolü tamamen backend'de.
+2. **Sunucu tarafı boyut limiti:** ASP.NET `MultipartBodyLengthLimit` / request body limiti (örn. 10 MB). BFF limiti bypass edilebilir.
+3. **Satır sayısı limiti:** örn. max 5.000 satır → aşılırsa 413/400. Aşırı satır = DoS / uzun işlem.
+4. **İçerik doğrulama (MIME sniffing):** uzantı değil içerik kontrol edilmeli; gerçek metin/CSV değilse reddet. İlk byte'lar binary ise reddet.
+5. **Alan bazlı validasyon:** `Price` sayısal ve ≥0, `Stock` integer ≥0, `Title` zorunlu/uzunluk limiti, `ImageUrl` yalnızca `http(s)://` şeması — `file://`, `data:`, iç ağ adresleri (SSRF) reddedilmeli; backend bu URL'i fetch ediyorsa allowlist/host doğrulaması.
+6. **Hata raporu:** hatalı satırlar işlemi tümden düşürmemeli; `{ succeeded, failed, errors:[{row,reason}] }` döndürülmeli (frontend zaten bu şekli gösteriyor).
+7. **Formül enjeksiyonu (backend export T2):** `/admin/products/export` üreten taraf da `=`/`+`/`@` hücrelerini sanitize etmeli.
+8. **Rate limit:** bulk endpoint'e dakikada birkaç istekten fazlası throttle edilmeli.
+
+**Kabul:** Admin olmayan token `/admin/products/bulk`'a 403 alır; 10 MB üstü / 5.000+ satır reddedilir; `ImageUrl=file:///etc/passwd` içeren satır hata olarak raporlanır, işlem diğer satırları işler.
+
+**Öncelik sırası:** T6 (güvenlik) → T3 (veri kaybı riski) → T4 (sık kullanılan) → T2 (export iyileştirme) → T5 (yeni özellik).
+
+---
+
 ### Sonraki görevler — backend ekibinden gelecek
 
 ---

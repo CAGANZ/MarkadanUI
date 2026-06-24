@@ -11,6 +11,8 @@ import Skeleton from "@/components/ui/Skeleton";
 import Modal from "@/components/ui/Modal";
 import Pager from "@/components/catalog/Pager";
 
+const CSV_MAX_BYTES = 10 * 1024 * 1024; // 10 MB — BFF route ile aynı limit
+
 export default function AdminProductsPage() {
   const toast = useToast();
   const fileRef = useRef(null);
@@ -29,6 +31,12 @@ export default function AdminProductsPage() {
 
   const [deleteId, setDeleteId] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [exporting, setExporting] = useState(false);
+  const [togglingId, setTogglingId] = useState(null);
+
+  // isActive alanı backend listede dönmeye başlayınca durum kolonu otomatik açılır.
+  const hasActiveField = Array.isArray(products) && products.some((p) => p.isActive !== undefined);
 
   const load = useCallback(async () => {
     setProducts(null);
@@ -67,8 +75,30 @@ export default function AdminProductsPage() {
     }
   };
 
+  const pickCsv = (file) => {
+    setCsvResult(null);
+    if (!file) { setCsvFile(null); return; }
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      toast.error("Yalnızca .csv dosyaları kabul edilir");
+      setCsvFile(null);
+      return;
+    }
+    if (file.size > CSV_MAX_BYTES) {
+      toast.error("Dosya çok büyük (maksimum 10 MB)");
+      setCsvFile(null);
+      return;
+    }
+    if (file.size === 0) {
+      toast.error("Dosya boş");
+      setCsvFile(null);
+      return;
+    }
+    setCsvFile(file);
+  };
+
   const uploadCsv = async () => {
     if (!csvFile) return;
+    if (csvFile.size > CSV_MAX_BYTES) { toast.error("Dosya çok büyük (maksimum 10 MB)"); return; }
     setCsvUploading(true);
     setCsvResult(null);
     try {
@@ -90,6 +120,75 @@ export default function AdminProductsPage() {
     }
   };
 
+  // CSV dışa aktarma — tüm ürünleri çekip yükleme ile aynı başlıkta indirir (round-trip uyumlu).
+  // NOT: Admin liste `description` döndürmediği için detay çağrılarıyla tamamlanır.
+  // Katalog büyürse backend `/admin/products/export` (GÖREV T2) bunun yerini almalı.
+  const csvCell = (v) => {
+    let s = v == null ? "" : String(v);
+    // CSV formül enjeksiyonu koruması: Excel/Sheets'te =, +, @ ile başlayan
+    // hücreler formül olarak çalışır. Başına ' ekleyerek metne çeviriyoruz.
+    if (/^[=+@\t\r]/.test(s)) s = `'${s}`;
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const first = await api(`/admin/products?page=1&pageSize=1`);
+      const count = first.total ?? 0;
+      if (count === 0) { toast.error("Dışa aktarılacak ürün yok"); return; }
+      const all = await api(`/admin/products?page=1&pageSize=${count}`);
+      const items = all.items ?? [];
+
+      // description'ı detaydan tamamla (eşzamanlı, 8'lik gruplar)
+      const withDesc = [];
+      for (let i = 0; i < items.length; i += 8) {
+        const batch = items.slice(i, i + 8);
+        const detailed = await Promise.all(
+          batch.map((p) =>
+            api(`/admin/products/${p.id}`).catch(() => p)
+          )
+        );
+        withDesc.push(...detailed);
+      }
+
+      const header = ["Title", "Description", "Price", "Stock", "BrandName", "CategoryName", "ImageUrl"];
+      const rows = withDesc.map((p) =>
+        [p.title, p.description, p.price, p.stock, p.brandName, p.categoryName, p.imageUrl].map(csvCell).join(",")
+      );
+      const csv = "﻿" + [header.join(","), ...rows].join("\r\n");
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      a.href = url;
+      a.download = `urunler_${stamp}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`${withDesc.length} ürün dışa aktarıldı`);
+    } catch (err) {
+      toast.error(err.detail || "Dışa aktarma başarısız");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // İçeriği açmadan aktif/pasif değiştir. Backend `PATCH /admin/products/{id}/active` ekleyince çalışır (GÖREV T3).
+  const toggleActive = async (p) => {
+    setTogglingId(p.id);
+    const next = !p.isActive;
+    try {
+      await api(`/admin/products/${p.id}/active`, { method: "PATCH", body: { isActive: next } });
+      setProducts((prev) => prev.map((x) => (x.id === p.id ? { ...x, isActive: next } : x)));
+      toast.success(next ? "Ürün aktife alındı" : "Ürün pasife alındı");
+    } catch (err) {
+      toast.error(err.detail || "Durum güncellenemedi");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const inputCls =
@@ -103,6 +202,9 @@ export default function AdminProductsPage() {
           <p className="mt-1 text-sm text-ink-soft">Ürün ekleme, düzenleme ve silme</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="secondary" size="sm" loading={exporting} onClick={exportCsv}>
+            CSV İndir
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => { setCsvFile(null); setCsvResult(null); setCsvModal(true); }}>
             CSV Yükle
           </Button>
@@ -161,7 +263,7 @@ export default function AdminProductsPage() {
               <table className="w-full">
                 <thead className="bg-surface">
                   <tr>
-                    {["Ürün", "Kategori", "Marka", "Fiyat", "Stok", "İşlemler"].map((h) => (
+                    {["Ürün", "Kategori", "Marka", "Fiyat", "Stok", ...(hasActiveField ? ["Durum"] : []), "İşlemler"].map((h) => (
                       <th key={h} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-soft">
                         {h}
                       </th>
@@ -190,6 +292,23 @@ export default function AdminProductsPage() {
                       <td className="px-5 py-3 text-sm text-ink">{p.brandName || "—"}</td>
                       <td className="px-5 py-3 text-sm font-semibold text-ink">{formatPrice(p.price)}</td>
                       <td className="px-5 py-3 text-sm text-ink">{p.stock ?? "—"}</td>
+                      {hasActiveField && (
+                        <td className="px-5 py-3">
+                          <button
+                            onClick={() => toggleActive(p)}
+                            disabled={togglingId === p.id}
+                            title={p.isActive ? "Pasife al" : "Aktife al"}
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
+                              p.isActive
+                                ? "bg-success/10 text-success hover:bg-success/20"
+                                : "bg-surface text-ink-soft hover:bg-line/40"
+                            }`}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${p.isActive ? "bg-success" : "bg-ink-soft"}`} />
+                            {p.isActive ? "Aktif" : "Pasif"}
+                          </button>
+                        </td>
+                      )}
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-2">
                           <Link href={`/products/${p.id}`} className="text-xs font-medium text-ink-soft hover:text-ink" title="Görüntüle">👁</Link>
@@ -250,7 +369,7 @@ export default function AdminProductsPage() {
               type="file"
               accept=".csv"
               className="hidden"
-              onChange={(e) => { setCsvFile(e.target.files?.[0] ?? null); setCsvResult(null); }}
+              onChange={(e) => pickCsv(e.target.files?.[0] ?? null)}
             />
           </div>
           {csvResult && (
