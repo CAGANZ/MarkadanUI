@@ -1,6 +1,6 @@
 # Markadan Frontend — Durum Raporu ve Görev Listesi
 
-**Tarih:** 2026-06-23 | **Son backend commit:** `a179d07` | **Build:** ✅ temiz | **E2E test:** ✅ tüm akışlar geçti
+**Tarih:** 2026-06-25 | **Son backend commit:** `b104b08` | **Build:** ✅ temiz | **E2E test:** ✅ tüm akışlar geçti
 **Hazırlayan:** Mimar | **Hedef okuyucu:** Projeye devam edecek geliştirici
 
 > **Başlamadan önce sırasıyla oku:**
@@ -75,6 +75,13 @@ UI çözümü: `useCart.acceptPriceChanges` — silip yeniden ekler.
 - **G9 Kupon sistemi:** `CartDTO`'ya `couponCode`, `discountAmount`, `finalTotal` eklendi. Yeni sepet uçları: `POST /me/cart/coupon`, `DELETE /me/cart/coupon`. Admin CRUD: `/admin/coupons`.
 - **G5 Kargo takip:** `OrderDTO` ve `AdminOrderDTO`'ya `trackingNumber`, `trackingUrl` eklendi. Admin durum güncelleme body'si genişletildi.
 - **G7 CSV export:** `GET /admin/orders/export` ucu eklendi — tarayıcıdan doğrudan indirme çalışır.
+
+**2026-06-25 backend değişiklikleri (GÖREV T + F2 tamamlandı):**
+- **F2 accept-prices:** `POST /me/cart/accept-prices` — fiyat değişen tüm item snapshot'larını güncel fiyata eşitler. `useCart` workaround'u (sil+yeniden ekle) bu uçla değiştirilmeli. Yanıt: `CartDTO`.
+- **T4 IsActive:** `Product`'a `isActive` (bool) eklendi. `PATCH /admin/products/{id}/active` body: `{ "isActive": bool }` → 200. Admin liste ve detay DTO'larına `isActive` eklendi. Public katalog yalnızca `isActive=true` döndürür. **UI todo:** `src/app/api/admin/products/[id]/active/route.js` (PATCH passthrough) — toggle zaten listede aktif hale gelir.
+- **T2 Ürün export:** `GET /admin/products/export?q=&sort=` → `urunler_YYYYMMDD.csv` (BOM'lu UTF-8). **UI todo:** `src/app/api/admin/products/export/route.js` (GET passthrough) + `<a download>` butonu (T1 butonu bu route'a yönlendirilecek).
+- **T6 Bulk güvenlik:** Satır limiti (5.000), binary MIME kontrolü, ImageUrl http/https zorunlu, rate limit (dk/5).
+- **T3 Bulk UPSERT:** `POST /admin/products/bulk` artık upsert — `Title+BrandName` eşleşmesi, eşleşen güncellenir, yeni eklenir, dosyada olmayan **silinmez**. Yanıt: `{ succeeded, failed, errors }`.
 
 **2026-06-22–23 backend değişiklikleri (yeni görevler R–S için bağlam):**
 - **G4 Tekrar sipariş ver:** `POST /me/orders/{id}/reorder` eklendi. Tamamlanan siparişin ürünlerini aktif sepete kopyalar; stokta olmayan ürünler atlanır, güncel fiyat snapshot alınır. Yanıt: `CartDTO`.
