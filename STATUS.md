@@ -1,17 +1,21 @@
 # STATUS — Markadan Frontend Şu An Neredeyiz
 
-**Son güncelleme:** 2026-06-24  
+**Son güncelleme:** 2026-06-25  
 **Güncelleyen:** Claude
 
 ---
 
 ## Şu an ne durumda
 
-Ödeme akışı mock ile çalışıyor, sipariş alınıyor ✅. iyzico gerçek entegrasyon ertelendi. Frontend tamamlandı, backend'den yeni görev bekleniyor.
+Backend T2/T3/T4/T6-sunucu + F2 teslim edildi (2026-06-25). Frontend tarafında bu uçları bağlamak kaldı — aşağıdaki "Sıradaki" listesine bkz.
 
 ---
 
 ## Son oturumda ne yapıldı
+
+**2026-06-25**
+- Backend teslimi doğrulandı: T4 `isActive` + `PATCH /admin/products/{id}/active`, T2 `GET /admin/products/export`, T3 bulk upsert semantiği, T6 sunucu güvenliği (satır limiti/MIME/SSRF/rate limit), F2 `POST /me/cart/accept-prices`.
+- Frontend iş kuyruğu güncellendi (bkz. Sıradaki).
 
 **2026-06-24**
 - Çağan siteyi uçtan uca test etti (admin dahil). Ürün yönetiminde 5 iyileştirme tespit edildi → **GÖREV T** (docs/DURUM-RAPORU.md).
@@ -58,19 +62,23 @@
 
 ## Devam Eden
 
-GÖREV T — backend bekliyor (T2/T3/T4/T5). Frontend tarafı T1 bitti, T4 UI hazır.
+GÖREV T — backend teslim etti (T2/T3/T4/T6-sunucu). Frontend bağlantı işleri kaldı (aşağıda). T5 hâlâ bekliyor.
 
 ---
 
 ## Sıradaki (öncelik sırasıyla)
 
-1. **GÖREV T6** — backend güvenlik zorunlulukları (admin rol 403, sunucu boyut/satır limiti, MIME, ImageUrl SSRF, rate limit) → backend
-2. **GÖREV T3** — bulk yükleme upsert davranışı (veri kaybı riski) → backend
-3. **GÖREV T4** — `isActive` alanı + `PATCH /admin/products/{id}/active` → backend; sonra frontend BFF route (`src/app/api/admin/products/[id]/active/route.js`) ekle
-4. **GÖREV T2** — `/admin/products/export` endpoint → client-side export'u sadeleştirir
-5. **GÖREV T5** — jenerik varyant/opsiyon sistemi → önce backend mimari kararı
-6. Admin panelden kırık Unsplash görselini güncelle (içerik fix, kod değil)
-7. iyzico gerçek entegrasyon — credentials hazır olunca dönülecek
+### Frontend — hemen yapılabilir (backend hazır)
+1. **T4 frontend** — `src/app/api/admin/products/[id]/active/route.js` ekle (PATCH passthrough) → toggle anında çalışır (UI zaten hazır)
+2. **T2 frontend** — `src/app/api/admin/products/export/route.js` + T1 butonunu `<a download href="/api/admin/products/export">` ile değiştir
+3. **F2 frontend** — `useCart.acceptPriceChanges` workaround'unu `POST /me/cart/accept-prices` gerçek endpoint ile değiştir
+
+### Backend bekliyor
+4. **GÖREV T5** — jenerik varyant/opsiyon sistemi → önce backend mimari kararı
+5. iyzico gerçek entegrasyon — credentials hazır olunca dönülecek
+
+### İçerik / kod değil
+6. Admin panelden kırık Unsplash görselini güncelle
 
 ---
 
