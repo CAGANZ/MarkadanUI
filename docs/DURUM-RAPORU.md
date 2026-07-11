@@ -743,7 +743,7 @@ Yapılan: `src/app/admin/products/page.jsx` → "CSV İndir" butonu. Tüm ürün
 
 **Sınırlama:** Katalog büyüdükçe (yüzlerce ürün) N adet detay çağrısı yapılıyor — geçici çözüm. Kalıcı çözüm T2.
 
-#### T2 — Backend `/admin/products/export` Endpoint (kalıcı çözüm) — **BACKEND**
+#### T2 — Backend `/admin/products/export` Endpoint (kalıcı çözüm) — ✅ TAMAMLANDI (backend 2026-06-25, frontend bağlandı)
 T1'in client-side detay çağrılarını ortadan kaldırır. `/admin/orders/export` ile birebir aynı desen:
 ```
 GET /admin/products/export?q=&sort=
@@ -752,7 +752,7 @@ Başlık satırı: Title,Description,Price,Stock,BrandName,CategoryName,ImageUrl
 ```
 Hazır olunca frontend'de tek satır BFF route (`src/app/api/admin/products/export/route.js`, orders/export'un kopyası) + butonu `<a download href="/api/admin/products/export?...">`'a çevir. **Kabul:** tek istekte tüm katalog, description dahil, doğru iner.
 
-#### T3 — Bulk Yükleme Semantiği: UPSERT (eskiyi silme) — **BACKEND**
+#### T3 — Bulk Yükleme Semantiği: UPSERT (eskiyi silme) — ✅ TAMAMLANDI (2026-06-25, sadece backend — frontend değişikliği yok)
 **Sorun:** `POST /admin/products/bulk` davranışı belgesiz. Dosyada olmayan eski ürünlerin silinip silinmediği bilinmiyor. **İstenen:** eskiler silinmeden, dosyadakiler eklensin/güncellensin.
 - Varsayılan davranış **append/upsert** olmalı: CSV'de olmayan ürünler **silinmez**.
 - Eşleştirme anahtarı netleştirilsin: `slug` (benzersiz) veya `Title+BrandName`. Eşleşen ürün **güncellenir**, eşleşmeyen **eklenir**.
@@ -761,7 +761,7 @@ Hazır olunca frontend'de tek satır BFF route (`src/app/api/admin/products/expo
 
 **Kabul:** 20 ürünlük katalogda, 2 ürünlük CSV yüklenince diğer 18 ürün yerinde kalır; 2 ürün eklenir/güncellenir.
 
-#### T4 — İçerik Açmadan Pasife Alma — **BACKEND + frontend (UI hazır)**
+#### T4 — İçerik Açmadan Pasife Alma — ✅ TAMAMLANDI (backend 2026-06-25, frontend bağlandı)
 **Sorun:** Pasif ürün yapmak için ürünü düzenleme sayfasına girmek gerekiyor; modelde `isActive` alanı yok.
 
 Backend:
@@ -814,7 +814,7 @@ Kurallar: aynı üründe aynı isimli eksen olmaz, aynı eksende aynı değer ol
 
 **Frontend görevi (bu madde kapsam dışı bırakıldı, ayrı iş):** ürün detayında seçenek seçici (options → uyumlu variant bul → price/stock/image güncelle), admin'de opsiyon/varyant editörü, sepet/sipariş satırlarında `variantLabel` gösterimi.
 
-#### T6 — CSV Yükleme Güvenliği — **frontend kısmı ✅ / backend ZORUNLU**
+#### T6 — CSV Yükleme Güvenliği — ✅ TAMAMLANDI (frontend 2026-06-24, backend 2026-06-25)
 CSV yükleme bir dosya alım yüzeyi; saldırı vektörleri ele alındı.
 
 **Frontend'de yapıldı (2026-06-24, defense-in-depth):**
@@ -835,7 +835,7 @@ CSV yükleme bir dosya alım yüzeyi; saldırı vektörleri ele alındı.
 
 **Kabul:** Admin olmayan token `/admin/products/bulk`'a 403 alır; 10 MB üstü / 5.000+ satır reddedilir; `ImageUrl=file:///etc/passwd` içeren satır hata olarak raporlanır, işlem diğer satırları işler.
 
-**Öncelik sırası:** T6 (güvenlik) → T3 (veri kaybı riski) → T4 (sık kullanılan) → T2 (export iyileştirme) → T5 (yeni özellik).
+**Öncelik sırası (uygulandı):** T6 (güvenlik) → T3 (veri kaybı riski) → T4 (sık kullanılan) → T2 (export iyileştirme) → T5 (yeni özellik). Hepsi backend'de bitti; **kalan tek iş T5'in frontend'i** (bkz. T5 bölümü sonu).
 
 ---
 
