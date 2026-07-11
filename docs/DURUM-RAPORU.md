@@ -730,9 +730,9 @@ Kayıt body'sine `phoneNumber` ekle. Backend `POST /auth/register`'ı kontrol et
 ---
 
 ### GÖREV T — Ürün Yönetimi: Export, Bulk Upsert, Pasif Durum, Varyantlar
-**Süre tahmini:** T1 ✅ bitti · T2-T3-T4 backend · T5 büyük (backend + frontend) | **Tetikleyen:** QA sonrası Çağan geri bildirimi (2026-06-24)
+**Süre tahmini:** T1 ✅ bitti · T2-T3-T4-T6 backend ✅ bitti · T5 backend ✅ bitti (2026-07-11), frontend bekliyor | **Tetikleyen:** QA sonrası Çağan geri bildirimi (2026-06-24)
 
-Site uçtan uca test edildi. Ürün yönetiminde 5 iyileştirme tespit edildi. T1 frontend'de tamamlandı; T2–T5 backend desteği gerektiriyor (DTO/endpoint mevcut değil — swagger ile doğrulandı 2026-06-24).
+Site uçtan uca test edildi. Ürün yönetiminde 5 iyileştirme tespit edildi. T1 frontend'de tamamlandı; T2–T6 backend'de tamamlandı, T5'in frontend tarafı (opsiyon/varyant editörü, ürün detayı seçici, sepet gösterimi) hâlâ bekliyor.
 
 ---
 
@@ -773,21 +773,46 @@ Frontend (hazır, backend bekliyor): `src/app/admin/products/page.jsx`'te liste 
 
 **Kabul:** Listede toggle'a basınca ürün anında pasife/aktife geçer; pasif ürün public katalogda görünmez.
 
-#### T5 — Jenerik Ürün Varyantları / Opsiyonları — **BACKEND (büyük) + frontend**
-**Amaç:** Sadece kıyafet bedeni değil; takı/eşarp/elektronik için renk, kapasite vb. **isteğe bağlı** seçenekler. Kategori veya ürün düzeyinde opsiyon tanımlanıp ürüne uygulanabilmeli.
+#### T5 — Jenerik Ürün Varyantları / Opsiyonları — **BACKEND ✅ TAMAMLANDI (2026-07-11) / frontend bekliyor**
+**Amaç:** Sadece kıyafet bedeni değil; takı/eşarp/elektronik için renk, kapasite vb. **isteğe bağlı** seçenekler.
 
-Önerilen jenerik model (EAV değil, opsiyon+varyant):
+Uygulanan model (EAV değil, opsiyon+varyant):
 ```
 ProductOption      { id, productId, name ("Beden"/"Renk"), sortOrder }
 ProductOptionValue { id, optionId, value ("M"/"Kırmızı"), sortOrder }
-ProductVariant     { id, productId, sku?, priceDelta|price, stock, imageUrl?,
-                     optionValueIds: [..] }   // seçenek kombinasyonu
+ProductVariant     { id, productId, sku?, price? (null→ürün fiyatı), stock, imageUrl?, isActive }
+ProductVariantValue{ variantId, optionValueId }   // M:N — bir varyantı oluşturan seçim kombinasyonu
 ```
-- Varyantsız ürün (tekil) mevcut akışla çalışmaya devam etmeli — `stock`/`price` ürün düzeyinde.
-- Sepet/sipariş satırı `variantId` taşımalı; stok düşümü varyant bazında.
-- DTO'lar: `ProductDetailDTO.options[]` + `variants[]`; `CartItem`/`OrderItem`'a `variantId` + seçilen değerler.
+- Varyantsız ürün mevcut akışla çalışmaya devam ediyor — `stock`/`price` ürün düzeyinde, `options`/`variants` boş dizi döner.
+- Varyantlı üründe sepete eklerken `productVariantId` **zorunlu**; basit üründe gönderilirse 409.
+- Stok düşümü/iadesi varyant bazında (checkout, iptal, reorder hepsi varyant-farkında).
 
-Kapsam büyük — önce backend veri modeli + API kararı, sonra ayrı frontend görevi (ürün detayında seçici, admin'de opsiyon/varyant editörü, sepette varyant gösterimi). **Bu madde için önce backend mimari kararı bekleniyor.**
+**Admin uçları** (`[Authorize(Policy="AdminOnly")]`, tümü `admin/products/{productId}/...` altında):
+```
+GET    /admin/products/{id}/options                       opsiyon (eksen) listesi + değerleri
+POST   /admin/products/{id}/options                       { name, sortOrder, values?:[{value,sortOrder}] }
+DELETE /admin/products/{id}/options/{optionId}             (varyantta kullanılıyorsa 409)
+POST   /admin/products/{id}/options/{optionId}/values      { value, sortOrder }
+DELETE /admin/products/{id}/option-values/{valueId}        (varyantta kullanılıyorsa 409)
+
+GET    /admin/products/{id}/variants                       varyant listesi
+POST   /admin/products/{id}/variants                       { sku?, price?, stock, imageUrl?, isActive, optionValueIds:[..] }
+PUT    /admin/products/{id}/variants/{variantId}           aynı body, tam güncelleme
+DELETE /admin/products/{id}/variants/{variantId}            (sepette/siparişte kullanılıyorsa 409 — "pasife alın")
+```
+Kurallar: aynı üründe aynı isimli eksen olmaz, aynı eksende aynı değer olmaz, aynı seçenek kombinasyonuyla iki varyant olmaz — hepsi 409 ile engellenir.
+
+**Public/müşteri tarafında değişen uçlar:**
+- `GET /products/{id}` ve `GET /products/{slug}` yanıtına eklendi:
+  ```
+  options: [{ id, name, values: [{ id, value }] }]
+  variants: [{ id, sku, price, stock, imageUrl, optionValueIds:[..] }]
+  ```
+  `price` her zaman **etkin fiyat** (varyantın kendi fiyatı yoksa ürün fiyatı) — frontend ek hesap yapmasın.
+- `POST /me/cart/items` body'sine `productVariantId` eklendi (varyantlı üründe zorunlu).
+- `GET /me/cart`, sipariş DTO'ları (`GET /me/orders/{id}`, admin sipariş detayı) satırlarına `variantId` + `variantLabel` ("Kırmızı / M") eklendi — UI seçili varyantı tek alandan gösterebilir.
+
+**Frontend görevi (bu madde kapsam dışı bırakıldı, ayrı iş):** ürün detayında seçenek seçici (options → uyumlu variant bul → price/stock/image güncelle), admin'de opsiyon/varyant editörü, sepet/sipariş satırlarında `variantLabel` gösterimi.
 
 #### T6 — CSV Yükleme Güvenliği — **frontend kısmı ✅ / backend ZORUNLU**
 CSV yükleme bir dosya alım yüzeyi; saldırı vektörleri ele alındı.
