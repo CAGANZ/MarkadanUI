@@ -32,7 +32,6 @@ export default function AdminProductsPage() {
   const [deleteId, setDeleteId] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const [exporting, setExporting] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
 
   // isActive alanı backend listede dönmeye başlayınca durum kolonu otomatik açılır.
@@ -120,61 +119,10 @@ export default function AdminProductsPage() {
     }
   };
 
-  // CSV dışa aktarma — tüm ürünleri çekip yükleme ile aynı başlıkta indirir (round-trip uyumlu).
-  // NOT: Admin liste `description` döndürmediği için detay çağrılarıyla tamamlanır.
-  // Katalog büyürse backend `/admin/products/export` (GÖREV T2) bunun yerini almalı.
-  const csvCell = (v) => {
-    let s = v == null ? "" : String(v);
-    // CSV formül enjeksiyonu koruması: Excel/Sheets'te =, +, @ ile başlayan
-    // hücreler formül olarak çalışır. Başına ' ekleyerek metne çeviriyoruz.
-    if (/^[=+@\t\r]/.test(s)) s = `'${s}`;
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
+  const exportHref = `/api/admin/products/export?${new URLSearchParams(
+    Object.fromEntries(Object.entries({ q: debouncedQ.trim(), sort }).filter(([, v]) => v))
+  ).toString()}`;
 
-  const exportCsv = async () => {
-    setExporting(true);
-    try {
-      const first = await api(`/admin/products?page=1&pageSize=1`);
-      const count = first.total ?? 0;
-      if (count === 0) { toast.error("Dışa aktarılacak ürün yok"); return; }
-      const all = await api(`/admin/products?page=1&pageSize=${count}`);
-      const items = all.items ?? [];
-
-      // description'ı detaydan tamamla (eşzamanlı, 8'lik gruplar)
-      const withDesc = [];
-      for (let i = 0; i < items.length; i += 8) {
-        const batch = items.slice(i, i + 8);
-        const detailed = await Promise.all(
-          batch.map((p) =>
-            api(`/admin/products/${p.id}`).catch(() => p)
-          )
-        );
-        withDesc.push(...detailed);
-      }
-
-      const header = ["Title", "Description", "Price", "Stock", "BrandName", "CategoryName", "ImageUrl"];
-      const rows = withDesc.map((p) =>
-        [p.title, p.description, p.price, p.stock, p.brandName, p.categoryName, p.imageUrl].map(csvCell).join(",")
-      );
-      const csv = "﻿" + [header.join(","), ...rows].join("\r\n");
-
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-      a.href = url;
-      a.download = `urunler_${stamp}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success(`${withDesc.length} ürün dışa aktarıldı`);
-    } catch (err) {
-      toast.error(err.detail || "Dışa aktarma başarısız");
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  // İçeriği açmadan aktif/pasif değiştir. Backend `PATCH /admin/products/{id}/active` ekleyince çalışır (GÖREV T3).
   const toggleActive = async (p) => {
     setTogglingId(p.id);
     const next = !p.isActive;
@@ -202,8 +150,8 @@ export default function AdminProductsPage() {
           <p className="mt-1 text-sm text-ink-soft">Ürün ekleme, düzenleme ve silme</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" loading={exporting} onClick={exportCsv}>
-            CSV İndir
+          <Button asChild variant="secondary" size="sm">
+            <a href={exportHref} download>CSV İndir</a>
           </Button>
           <Button variant="secondary" size="sm" onClick={() => { setCsvFile(null); setCsvResult(null); setCsvModal(true); }}>
             CSV Yükle

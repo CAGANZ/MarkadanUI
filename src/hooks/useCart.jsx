@@ -69,19 +69,10 @@ export function CartProvider({ children }) {
     await reload();
   }, [reload]);
 
-  // Fiyat değişikliklerini onayla: backend'de snapshot tazeleme ucu olmadığından
-  // fiyatı değişen satırlar silinip aynı miktarla yeniden eklenir (yeni snapshot).
+  // Fiyat değişikliklerini onayla: tüm satırların snapshot fiyatını güncel fiyata eşitler.
   const acceptPriceChanges = useCallback(async () => {
-    const changed = (cart?.items ?? []).filter((it) => it.priceChanged);
-    for (const it of changed) {
-      await api(`/me/cart/items/${it.id}`, { method: "DELETE" });
-      await api("/me/cart/items", {
-        method: "POST",
-        body: { productId: it.productId, quantity: it.quantity },
-      });
-    }
-    await reload();
-  }, [cart, reload]);
+    setCart(await api("/me/cart/accept-prices", { method: "POST" }));
+  }, []);
 
   const applyCoupon = useCallback(
     async (code) => {

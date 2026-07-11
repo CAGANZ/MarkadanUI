@@ -1,17 +1,23 @@
 # STATUS — Markadan Frontend Şu An Neredeyiz
 
-**Son güncelleme:** 2026-06-25  
+**Son güncelleme:** 2026-07-11  
 **Güncelleyen:** Claude
 
 ---
 
 ## Şu an ne durumda
 
-Backend T2/T3/T4/T6-sunucu + F2 teslim edildi (2026-06-25). Frontend tarafında bu uçları bağlamak kaldı — aşağıdaki "Sıradaki" listesine bkz.
+T4/T2/F2 frontend bağlantıları tamamlandı. Kalan: **T5** (jenerik varyant/opsiyon, backend mimari kararı bekliyor) ve iyzico gerçek entegrasyonu.
 
 ---
 
 ## Son oturumda ne yapıldı
+
+**2026-07-11**
+- **T4 frontend ✅:** `src/app/api/admin/products/[id]/active/route.js` eklendi (PATCH passthrough) — aktif/pasif toggle artık gerçek uca bağlı.
+- **T2 frontend ✅:** `src/app/api/admin/products/export/route.js` eklendi (orders/export ile aynı desen — arrayBuffer + Content-Disposition passthrough). Admin ürün listesindeki "CSV İndir" butonu client-side toplama mantığından çıkarılıp `<a download href="/api/admin/products/export?q=&sort=">`'a çevrildi (T1'in geçici çözümü kaldırıldı).
+- **F2 frontend ✅:** `src/app/api/me/cart/accept-prices/route.js` eklendi (POST passthrough). `useCart.acceptPriceChanges` artık sil+yeniden-ekle workaround'u yerine tek `POST /me/cart/accept-prices` çağrısı yapıp dönen `CartDTO`'yu doğrudan state'e yazıyor.
+- Build: temiz ✅
 
 **2026-06-25**
 - Backend teslimi doğrulandı: T4 `isActive` + `PATCH /admin/products/{id}/active`, T2 `GET /admin/products/export`, T3 bulk upsert semantiği, T6 sunucu güvenliği (satır limiti/MIME/SSRF/rate limit), F2 `POST /me/cart/accept-prices`.
@@ -62,23 +68,18 @@ Backend T2/T3/T4/T6-sunucu + F2 teslim edildi (2026-06-25). Frontend tarafında 
 
 ## Devam Eden
 
-GÖREV T — backend teslim etti (T2/T3/T4/T6-sunucu). Frontend bağlantı işleri kaldı (aşağıda). T5 hâlâ bekliyor.
+GÖREV T'nin frontend kısmı (T1/T2/T4/T6) tamamlandı. T5 hâlâ backend mimari kararı bekliyor.
 
 ---
 
 ## Sıradaki (öncelik sırasıyla)
 
-### Frontend — hemen yapılabilir (backend hazır)
-1. **T4 frontend** — `src/app/api/admin/products/[id]/active/route.js` ekle (PATCH passthrough) → toggle anında çalışır (UI zaten hazır)
-2. **T2 frontend** — `src/app/api/admin/products/export/route.js` + T1 butonunu `<a download href="/api/admin/products/export">` ile değiştir
-3. **F2 frontend** — `useCart.acceptPriceChanges` workaround'unu `POST /me/cart/accept-prices` gerçek endpoint ile değiştir
-
 ### Backend bekliyor
-4. **GÖREV T5** — jenerik varyant/opsiyon sistemi → önce backend mimari kararı
-5. iyzico gerçek entegrasyon — credentials hazır olunca dönülecek
+1. **GÖREV T5** — jenerik varyant/opsiyon sistemi → önce backend mimari kararı
+2. iyzico gerçek entegrasyon — credentials hazır olunca dönülecek
 
 ### İçerik / kod değil
-6. Admin panelden kırık Unsplash görselini güncelle
+3. Admin panelden kırık Unsplash görselini güncelle
 
 ---
 
@@ -86,7 +87,8 @@ GÖREV T — backend teslim etti (T2/T3/T4/T6-sunucu). Frontend bağlantı işle
 
 | Tarih | Görev | Notlar |
 |-------|-------|--------|
-| 2026-06-24 | GÖREV T1 — Ürün CSV İndir | Round-trip uyumlu, client-side, BOM+CRLF |
+| 2026-07-11 | GÖREV T2/T4/F2 frontend bağlama | Ürün export sunucu tarafına taşındı, aktif/pasif toggle + sepet fiyat onayı gerçek uçlara bağlandı |
+| 2026-06-24 | GÖREV T1 — Ürün CSV İndir | Round-trip uyumlu, client-side, BOM+CRLF (T2 ile sunucu tarafına taşındı) |
 | 2026-06-22 | GÖREV J — İptal akışı güncelleme | 6 durum, canCustomerCancel, iade mesajları |
 | 2026-06-22 | GÖREV K — Dinamik mağaza verisi | getStoreSettings() 60s cache, Header/Footer/products |
 | 2026-06-22 | GÖREV L — Middleware auth guard | /account + /admin token kontrolü, ?next= yönlendirme |
