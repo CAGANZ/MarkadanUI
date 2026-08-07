@@ -137,6 +137,7 @@ function OrderDetail({ id }) {
                   {it.title}
                 </Link>
                 <span className="text-xs text-ink-soft">
+                  {it.variantLabel && <span className="text-ink">{it.variantLabel} · </span>}
                   {formatPrice(it.unitPriceSnapshot)} × {it.quantity}
                 </span>
               </div>

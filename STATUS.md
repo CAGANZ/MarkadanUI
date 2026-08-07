@@ -1,17 +1,28 @@
 # STATUS — Markadan Frontend Şu An Neredeyiz
 
-**Son güncelleme:** 2026-07-11  
+**Son güncelleme:** 2026-08-07  
 **Güncelleyen:** Claude
 
 ---
 
 ## Şu an ne durumda
 
-T4/T2/F2 frontend bağlantıları tamamlandı. Kalan: **T5** (jenerik varyant/opsiyon, backend mimari kararı bekliyor) ve iyzico gerçek entegrasyonu.
+**GÖREV T tamamen bitti** — T5'in frontend tarafı da teslim edildi. Kalan tek iş: iyzico gerçek entegrasyonu (credentials bekliyor).
 
 ---
 
 ## Son oturumda ne yapıldı
+
+**2026-08-07**
+- **T5 frontend ✅ (varyant/opsiyon sistemi):**
+  - 6 yeni BFF route: `admin/products/[id]/options` (GET/POST), `.../options/[optionId]` (DELETE), `.../options/[optionId]/values` (POST), `.../option-values/[valueId]` (DELETE), `.../variants` (GET/POST), `.../variants/[variantId]` (PUT/DELETE).
+  - `src/lib/variants.js` — saf seçim mantığı (findVariant, isValueAvailable, priceRange, variantLabel, defaultSelection, optionCombinations).
+  - Ürün detayı: `VariantProvider` context + `VariantImage` / `VariantPicker` / `VariantPrice`. Seçim tamamlanmadan fiyat **aralık** gösterir, sepete ekle kilitli ("Seçenekleri belirleyin"); stoksuz kombinasyon üstü çizili + disabled; varyant görseli varsa ana görsel değişir.
+  - `useCart.addItem(productId, qty, variantId)` — `productVariantId` yalnızca varyantlı üründe gönderilir (basit üründe gönderilirse backend 409).
+  - Sepet satırı + müşteri/admin sipariş detayında `variantLabel` rozeti.
+  - Admin: `/admin/products/[id]/variants` — eksen/değer CRUD, varyant tablosu (satır içi düzenleme), "eksik kombinasyonları oluştur". Ürün listesine ve düzenleme sayfasına bağlantı eklendi.
+- Uçtan uca doğrulandı (canlı backend): Beden(S/M/L) × Renk(Siyah/Beyaz) → 3 varyant; public DTO, fiyat aralığı, stoksuz değer kilidi, `productVariantId` ile sepete ekleme (409 kuralı dahil) ve `variantLabel` çalışıyor.
+- Build: temiz ✅
 
 **2026-07-11**
 - **T4 frontend ✅:** `src/app/api/admin/products/[id]/active/route.js` eklendi (PATCH passthrough) — aktif/pasif toggle artık gerçek uca bağlı.
@@ -68,18 +79,18 @@ T4/T2/F2 frontend bağlantıları tamamlandı. Kalan: **T5** (jenerik varyant/op
 
 ## Devam Eden
 
-GÖREV T'nin frontend kısmı (T1/T2/T4/T6) tamamlandı. T5 hâlâ backend mimari kararı bekliyor.
+Yok — GÖREV T (T1–T6) hem backend hem frontend tarafında kapandı.
 
 ---
 
 ## Sıradaki (öncelik sırasıyla)
 
 ### Backend bekliyor
-1. **GÖREV T5** — jenerik varyant/opsiyon sistemi → önce backend mimari kararı
-2. iyzico gerçek entegrasyon — credentials hazır olunca dönülecek
+1. iyzico gerçek entegrasyon — credentials hazır olunca dönülecek
 
 ### İçerik / kod değil
-3. Admin panelden kırık Unsplash görselini güncelle
+2. Admin panelden kırık Unsplash görselini güncelle
+3. Dev DB'de test amaçlı bırakılan varyantlar: ürün #1 (Koton Basic Beyaz Tişört) → Beden × Renk, 3 varyant. İstenmiyorsa `/admin/products/1/variants` sayfasından silinebilir.
 
 ---
 
@@ -87,6 +98,7 @@ GÖREV T'nin frontend kısmı (T1/T2/T4/T6) tamamlandı. T5 hâlâ backend mimar
 
 | Tarih | Görev | Notlar |
 |-------|-------|--------|
+| 2026-08-07 | GÖREV T5 frontend — varyant/opsiyon | Ürün detayı seçici, admin varyant editörü, sepet/sipariş variantLabel |
 | 2026-07-11 | GÖREV T2/T4/F2 frontend bağlama | Ürün export sunucu tarafına taşındı, aktif/pasif toggle + sepet fiyat onayı gerçek uçlara bağlandı |
 | 2026-06-24 | GÖREV T1 — Ürün CSV İndir | Round-trip uyumlu, client-side, BOM+CRLF (T2 ile sunucu tarafına taşındı) |
 | 2026-06-22 | GÖREV J — İptal akışı güncelleme | 6 durum, canCustomerCancel, iade mesajları |

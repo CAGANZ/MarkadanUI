@@ -261,6 +261,7 @@ export default function AdminProductsPage() {
                         <div className="flex items-center gap-2">
                           <Link href={`/products/${p.id}`} className="text-xs font-medium text-ink-soft hover:text-ink" title="Görüntüle">👁</Link>
                           <Link href={`/admin/products/${p.id}/edit`} className="text-xs font-medium text-primary hover:underline" title="Düzenle">Düzenle</Link>
+                          <Link href={`/admin/products/${p.id}/variants`} className="text-xs font-medium text-ink-soft hover:text-ink hover:underline" title="Seçenek ve varyantlar">Varyantlar</Link>
                           <button
                             onClick={() => setDeleteId(p.id)}
                             className="text-xs font-medium text-danger hover:underline"

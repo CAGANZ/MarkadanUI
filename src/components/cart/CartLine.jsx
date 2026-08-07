@@ -17,6 +17,7 @@ export default function CartLine({ item, onQuantity, onRemove, busy }) {
     priceChanged,
     quantity,
     subtotal,
+    variantLabel,
   } = item;
 
   return (
@@ -54,6 +55,13 @@ export default function CartLine({ item, onQuantity, onRemove, busy }) {
             Kaldır
           </button>
         </div>
+
+        {/* Seçilen varyant — "Kırmızı / M" */}
+        {variantLabel && (
+          <span className="mt-1 w-fit rounded bg-surface px-1.5 py-0.5 text-xs font-medium text-ink-soft">
+            {variantLabel}
+          </span>
+        )}
 
         {/* Fiyat — değiştiyse şeffaf göster */}
         <div className="mt-1 text-sm">

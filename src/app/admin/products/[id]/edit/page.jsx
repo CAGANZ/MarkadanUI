@@ -160,6 +160,9 @@ export default function EditProductPage() {
           <p className="mt-1 text-sm text-ink-soft">{original?.title} (#{id})</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="secondary" size="sm" asChild>
+            <Link href={`/admin/products/${id}/variants`}>Varyantlar</Link>
+          </Button>
           <Button variant="ghost" size="sm" asChild>
             <Link href={`/products/${id}`}>Görüntüle</Link>
           </Button>

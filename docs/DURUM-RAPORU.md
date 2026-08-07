@@ -25,8 +25,10 @@ npm run build    # commit öncesi zorunlu — tüm sayfalar geçmeli
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@markadan.com","password":"Markadan.2026!"}' | jq -r '.accessToken')
+  -d '{"userNameOrEmail":"<Seed__AdminEmail>","password":"<Seed__AdminPassword>"}' | jq -r '.accessToken')
 ```
+> Login gövdesi `email` değil **`userNameOrEmail`** bekler; admin bilgileri `~/MarkadanAPI/.env` içindeki
+> `Seed__AdminEmail` / `Seed__AdminPassword` değerleridir.
 Backend admin şifresi `~/MarkadanAPI/.env`'de. Swagger: `http://localhost:8080/swagger`.
 
 ---
@@ -730,9 +732,9 @@ Kayıt body'sine `phoneNumber` ekle. Backend `POST /auth/register`'ı kontrol et
 ---
 
 ### GÖREV T — Ürün Yönetimi: Export, Bulk Upsert, Pasif Durum, Varyantlar
-**Süre tahmini:** T1 ✅ bitti · T2-T3-T4-T6 backend ✅ bitti · T5 backend ✅ bitti (2026-07-11), frontend bekliyor | **Tetikleyen:** QA sonrası Çağan geri bildirimi (2026-06-24)
+**Durum:** ✅ TAMAMLANDI — T1–T6 backend + frontend (son parça: T5 frontend, 2026-08-07) | **Tetikleyen:** QA sonrası Çağan geri bildirimi (2026-06-24)
 
-Site uçtan uca test edildi. Ürün yönetiminde 5 iyileştirme tespit edildi. T1 frontend'de tamamlandı; T2–T6 backend'de tamamlandı, T5'in frontend tarafı (opsiyon/varyant editörü, ürün detayı seçici, sepet gösterimi) hâlâ bekliyor.
+Site uçtan uca test edildi. Ürün yönetiminde 5 iyileştirme tespit edildi. Hepsi kapandı.
 
 ---
 
@@ -773,7 +775,7 @@ Frontend (hazır, backend bekliyor): `src/app/admin/products/page.jsx`'te liste 
 
 **Kabul:** Listede toggle'a basınca ürün anında pasife/aktife geçer; pasif ürün public katalogda görünmez.
 
-#### T5 — Jenerik Ürün Varyantları / Opsiyonları — **BACKEND ✅ TAMAMLANDI (2026-07-11) / frontend bekliyor**
+#### T5 — Jenerik Ürün Varyantları / Opsiyonları — ✅ TAMAMLANDI (backend 2026-07-11, frontend 2026-08-07)
 **Amaç:** Sadece kıyafet bedeni değil; takı/eşarp/elektronik için renk, kapasite vb. **isteğe bağlı** seçenekler.
 
 Uygulanan model (EAV değil, opsiyon+varyant):
@@ -812,7 +814,14 @@ Kurallar: aynı üründe aynı isimli eksen olmaz, aynı eksende aynı değer ol
 - `POST /me/cart/items` body'sine `productVariantId` eklendi (varyantlı üründe zorunlu).
 - `GET /me/cart`, sipariş DTO'ları (`GET /me/orders/{id}`, admin sipariş detayı) satırlarına `variantId` + `variantLabel` ("Kırmızı / M") eklendi — UI seçili varyantı tek alandan gösterebilir.
 
-**Frontend görevi (bu madde kapsam dışı bırakıldı, ayrı iş):** ürün detayında seçenek seçici (options → uyumlu variant bul → price/stock/image güncelle), admin'de opsiyon/varyant editörü, sepet/sipariş satırlarında `variantLabel` gösterimi.
+**Frontend ✅ TAMAMLANDI (2026-08-07):**
+- **BFF route'lar:** `api/admin/products/[id]/options` (GET/POST), `.../options/[optionId]` (DELETE), `.../options/[optionId]/values` (POST), `.../option-values/[valueId]` (DELETE), `.../variants` (GET/POST), `.../variants/[variantId]` (PUT/DELETE).
+- **Seçim mantığı:** `src/lib/variants.js` — saf fonksiyonlar (findVariant, isValueAvailable, priceRange, variantLabel, defaultSelection, optionCombinations). Test edilebilir, bileşenlerden bağımsız.
+- **Ürün detayı:** `VariantProvider` (client context) + `VariantImage` / `VariantPicker` / `VariantPrice`. RSC sayfa statik içeriğini children olarak geçer. Seçim tamamlanmadan fiyat **aralık** olarak gösterilir ve sepete ekle kilitlidir ("Seçenekleri belirleyin"); diğer eksendeki seçimle stoklu varyant üretmeyen değerler üstü çizili/disabled; seçili varyantın görseli varsa ana görsel değişir; stok ≤5 ise "Son N adet".
+- **Sepet:** `useCart.addItem(productId, qty, variantId)` — `productVariantId` yalnızca varyantlı üründe gönderilir. Sepet satırı ve müşteri/admin sipariş detayı `variantLabel` gösterir.
+- **Admin editörü:** `/admin/products/[id]/variants` — eksen + değer CRUD, varyant tablosu (satır içi düzenleme: sku/fiyat/stok/aktiflik), "eksik N kombinasyonu oluştur" (stok 0 ile açar). Fiyat boş = ürün fiyatı. 409 mesajları doğrudan gösterilir.
+
+**Uçtan uca doğrulama (2026-08-07, canlı backend):** ürün #1'e Beden(S/M/L) × Renk(Siyah/Beyaz) + 3 varyant açıldı. Public DTO `options`/`variants` doğru, `variant.price` etkin fiyat; `POST /me/cart/items` varyantsız → 409 ("Bu ürün için bir seçenek (varyant) belirtmelisiniz."), `productVariantId` ile → 200 ve `variantLabel: "S / Siyah"`.
 
 #### T6 — CSV Yükleme Güvenliği — ✅ TAMAMLANDI (frontend 2026-06-24, backend 2026-06-25)
 CSV yükleme bir dosya alım yüzeyi; saldırı vektörleri ele alındı.
@@ -835,7 +844,7 @@ CSV yükleme bir dosya alım yüzeyi; saldırı vektörleri ele alındı.
 
 **Kabul:** Admin olmayan token `/admin/products/bulk`'a 403 alır; 10 MB üstü / 5.000+ satır reddedilir; `ImageUrl=file:///etc/passwd` içeren satır hata olarak raporlanır, işlem diğer satırları işler.
 
-**Öncelik sırası (uygulandı):** T6 (güvenlik) → T3 (veri kaybı riski) → T4 (sık kullanılan) → T2 (export iyileştirme) → T5 (yeni özellik). Hepsi backend'de bitti; **kalan tek iş T5'in frontend'i** (bkz. T5 bölümü sonu).
+**Öncelik sırası (uygulandı):** T6 (güvenlik) → T3 (veri kaybı riski) → T4 (sık kullanılan) → T2 (export iyileştirme) → T5 (yeni özellik). **GÖREV T tamamen kapandı** (T5 frontend: 2026-08-07).
 
 ---
 

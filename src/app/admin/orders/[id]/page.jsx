@@ -118,6 +118,7 @@ export default function AdminOrderDetailPage({ params }) {
               <div className="min-w-0 flex-1">
                 <span className="line-clamp-1 text-sm font-medium text-ink">{it.title}</span>
                 <span className="text-xs text-ink-soft">
+                  {it.variantLabel && <span className="text-ink">{it.variantLabel} · </span>}
                   {formatPrice(it.unitPriceSnapshot)} × {it.quantity}
                 </span>
               </div>

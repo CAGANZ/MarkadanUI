@@ -38,10 +38,19 @@ export function CartProvider({ children }) {
     reload();
   }, [reload]);
 
-  // Ürün ekle / miktar artır — başarılıysa sepeti tazeler
+  // Ürün ekle / miktar artır — başarılıysa sepeti tazeler.
+  // Varyantlı üründe productVariantId zorunlu; basit üründe gönderilirse
+  // backend 409 verir, bu yüzden yalnızca varsa eklenir.
   const addItem = useCallback(
-    async (productId, quantity = 1) => {
-      await api("/me/cart/items", { method: "POST", body: { productId, quantity } });
+    async (productId, quantity = 1, productVariantId = null) => {
+      await api("/me/cart/items", {
+        method: "POST",
+        body: {
+          productId,
+          quantity,
+          ...(productVariantId ? { productVariantId } : {}),
+        },
+      });
       await reload();
     },
     [reload]
